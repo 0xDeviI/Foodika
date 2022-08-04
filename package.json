@@ -17,7 +17,8 @@
     "url": "https://github.com/0xDeviI/Foodika/issues"
   },
   "homepage": "https://github.com/0xDeviI/Foodika#readme",
-  "dependencies": {
+  "devDependencies": {
+    "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "hbs": "^4.2.0"
   }
