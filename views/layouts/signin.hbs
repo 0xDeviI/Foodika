@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> {{title}} </title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="images/utensils-solid.svg">
+</head>
+
+<body>
+
+    {{> menu}}
+
+    <section class="home" id="home">
+
+        <div class="content">
+            <h3>ورود به حساب کاربری</h3>
+            <p>برای ثبت سفارش به حساب کاربری خود وارد شوید.</p>
+            <form action="/api/v1/login" method="post">
+                <input name="phone" class="textbox w80p" type="text" maxlength="11" minlength="11" placeholder="شماره تلفن همراه را وارد کنید">
+                <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                <button class="btn">دریافت کد یک بار مصرف</button>
+            </form>
+        </div>
+
+        <div class="image">
+            <img src="images/home-img.png" alt="">
+        </div>
+
+    </section>
+
+
+</body>
+
+</html>
