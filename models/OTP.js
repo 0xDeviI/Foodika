@@ -2,10 +2,6 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const OTPSchema = new Schema({
-    user_id: {
-        type: String,
-        required: false
-    },
     phone: {
         type: String,
         required: true,
