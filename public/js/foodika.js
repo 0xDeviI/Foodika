@@ -1,15 +1,23 @@
 function startTimer(otpTime, display) {
-    var distance = otpTime - new Date().getTime();
-    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-    setTimeout(function () {
-        if (seconds > 0) {
-            display.innerHTML = minutes + ":" + seconds;
-            startTimer(otpTime, display);
+    var otpTime = new Date(otpTime).getTime();
+    var time = new Date(otpTime + 2 * 60 * 1000).getTime();
+    var interval = setInterval(function () {
+        var now = new Date().getTime();
+        if (now > time) {
+            clearInterval(interval);
+            notify("خطا", "رمز یکبار مصرف منقضی شد.", 2000);
+            setTimeout(function() {
+                security.removeLocalStorage('otpRequested');
+                security.removeLocalStorage('time');
+                window.location.href = "/signin";
+            }, 3000);
         } else {
-            display.innerHTML = "00:00";
+            var distance = time - now;
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString();
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000).toString();
+            display.innerHTML = (minutes.length == 1 ? `0${minutes}` : minutes) + ":" + (seconds.length == 1 ? `0${seconds}` : seconds);
         }
-    }, 1000);
+    } , 1000);
 }
 
 const security = {
@@ -55,25 +63,11 @@ const security = {
 }
 
 function isValidOTP(otp) {
-    var isNumber = /^[0-9]+$/;
-    if (isNumber.test(otp)) {
-        if (phone.length !== 6) {
-            return false;
-        }
-        return true;
-    }
-    return false;
+    return !isNaN(otp) && otp.length === 6;
 }
 
 function isValidPhone(phone) {
-    var isNumber = /^[0-9]+$/;
-    if (isNumber.test(phone)) {
-        if (phone.length !== 11 || !phone.startsWith('0')) {
-            return false;
-        }
-        return true;
-    }
-    return false;
+    return !isNaN(phone) && phone.length === 11 || phone.startsWith('0');
 }
 
 const page = document.getElementById('page');
@@ -116,10 +110,12 @@ if (page !== null) {
                             if (!data.error) {
                                 security.removeLocalStorage('otpRequested');
                                 security.removeLocalStorage('time');
-                                // security.setLocalStorage('otpRequested', 'true');
-                                // security.setLocalStorage('phone', phone.value);
-                                // security.setLocalStorage('time', new Date().getTime().toString());
-                                // window.location.reload();
+                                security.removeLocalStorage('phone');
+                                security.setLocalStorage('loggedIn', 'true');
+                                security.setLocalStorage('token', data.token);
+                                setTimeout(function () {
+                                    // window.location.href = '/dashboard';
+                                }, 2000);
                             }
                             else {
                                 notify("خطا", data.message, 2000);

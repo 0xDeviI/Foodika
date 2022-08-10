@@ -7,11 +7,15 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const uuid4 = require('./modules/uuid');
 const session = require('express-session');
+const validator = require('validatorjs');
 const PORT = process.env.PORT || 3000;
 dotenv.config();
 var cookieParser = require('cookie-parser');
 var csrfProtection = csrf({ cookie: true, sessionKey: process.env.CSRF_SESSION_KEY });
 var parseForm = express.urlencoded({ extended: false });
+
+// middlewares
+const isLoggedIn = require('./middleware/user/is_loggedin');
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(err) {
@@ -43,6 +47,12 @@ app.post('/api/v1/otp', csrfProtection, (req, res) => {
         return res.status(400).send({
             error: true,
             message: 'شماره موبایل را وارد کنید.'
+        });
+    }
+    else if (phone.length !== 11 || !phone.startsWith('0')) {
+        return res.status(400).send({
+            error: true,
+            message: 'شماره موبایل صحیح نیست.'
         });
     }
     else {
@@ -104,6 +114,119 @@ app.post('/api/v1/otp', csrfProtection, (req, res) => {
     }
 });
 
+app.post('/api/v1/login', csrfProtection, (req, res) => {
+    var otp = req.body.otp;
+    var phone = req.body.phone;
+    if (!otp || !phone) {
+        return res.status(400).send({
+            error: true,
+            message: 'شماره موبایل و رمز یکبار مصرف را وارد کنید.'
+        });
+    }
+    else if (phone.length !== 11 || !phone.startsWith('0')) {
+        return res.status(400).send({
+            error: true,
+            message: 'شماره موبایل صحیح نیست.'
+        });
+    }
+    else if (otp.length !== 6 && !isNaN(otp)) {
+        return res.status(400).send({
+            error: true,
+            message: 'رمز یکبار مصرف صحیح نیست.'
+        });
+    }
+    else {
+        OTP.findOne({ phone: phone, otp: otp}, (err, otp) => {
+            if (err) {
+                return res.status(500).send({
+                    error: true,
+                    message: 'خطایی در ورود به سیستم به وجود آمد.'
+                });
+            }
+            if (!otp) {
+                return res.status(400).send({
+                    error: true,
+                    message: 'رمز یکبار مصرف اشتباه است.'
+                });
+            }
+            else {
+                // check if otp is expired. each otp is valid for 2 minutes
+                if (otp.created_at.getTime() + 120000 < Date.now()) {
+                    // otp is expired, return error
+                    return res.status(400).send({
+                        error: true,
+                        message: 'رمز یکبار مصرف منقضی شده است.'
+                    });
+                }
+                else {
+                    // otp is valid, login user
+                    User.findOne({ phone: phone }, (err, user) => {
+                        if (err) {
+                            return res.status(500).send({
+                                error: true,
+                                message: 'خطایی در ورود به سیستم به وجود آمد.'
+                            });
+                        }
+                        if (!user) {
+                            // register new user
+                            const newUser = new User({
+                                name: 'کاربر',
+                                phone: phone,
+                                role: 'user'
+                            });
+                            newUser.save(err => {
+                                if (err) {
+                                    return res.status(500).send({
+                                        error: true,
+                                        message: 'خطایی در ورود به سیستم به وجود آمد.'
+                                    });
+                                }
+                                else {
+                                    // login user
+                                    User.findOne({ phone: phone }, (err, _user) => {
+                                        if (err) {
+                                            return res.status(500).send({
+                                                error: true,
+                                                message: 'خطایی در ورود به سیستم به وجود آمد.'
+                                            });
+                                        }
+                                        else {
+                                            // generate token
+                                            const token = jwt.sign({ 
+                                                user: _user
+                                            }, process.env.JWT_SECRET, { expiresIn: '3h' });
+                                            // return token to user
+                                            req.session.user = user;
+                                            return res.status(200).send({
+                                                error: false,
+                                                token: token,
+                                                message: 'ورود به سیستم با موفقیت انجام شد.'
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        else {
+                            // login user
+                            jwtoken = jwt.sign({
+                                user: user
+                            }, process.env.JWT_SECRET, { expiresIn: '3h' });
+                            req.session.user = user;
+                            return res.status(200).send({
+                                error: false,
+                                message: 'ورود به سیستم با موفقیت انجام شد.',
+                                registered: true,
+                                token: jwtoken
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    }
+});
+
 // ********** Web Application Routes **********
 app.get('/', (req, res) => {
     res.render('layouts/index', {
@@ -121,17 +244,12 @@ app.get('/signin', csrfProtection, (req, res) => {
     });
 });
 
-app.get('/dashboard', (req, res) => {
-    // check logged in user using session
-    if (req.session.user) {
-        res.render('layouts/dashboard', {
-            title: process.env.SITE_TITLE + ' - داشبورد',
-            name: process.env.SITE_NAME,
-            page: 'dashboard'
-        });
-    } else {
-        res.redirect('/signin');
-    }
+app.get('/dashboard', isLoggedIn, (req, res) => {
+    res.render('layouts/dashboard', {
+        title: process.env.SITE_TITLE + ' - داشبورد',
+        name: process.env.SITE_NAME,
+        page: 'dashboard'
+    });
 });
 
 app.listen(PORT, () => {

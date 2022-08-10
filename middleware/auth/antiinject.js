@@ -1,0 +1,1 @@
+// antiinject.js goes to validate and sanitize the inputs from the user to prevent injection attacks.
