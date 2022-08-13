@@ -40,75 +40,107 @@ const security = {
     }
 }
 
-function isValidUsername(username) {
-    return /^[a-zA-Z0-9_]{3,20}$/.test(username);
-}
+const validator = {
+    isValidUsername: (username) => {
+        return /^[a-zA-Z0-9_]{3,20}$/.test(username);
+    },
+    isValidPassword: (password) => {
+        return /^[a-zA-Z0-9_!@#${}:>]{3,}$/.test(password);
+    },
+    isValidName: (name) => {
+        return /^[\u0600-\u06FF\s]+$/.test(name);
+    }
+};
 
-function isValidPassword(password) {
-    return /^[a-zA-Z0-9_!@#$]{3,}$/.test(password);
-}
-
-function isValidName(name) {
-    return /^[\u0600-\u06FF\s]+$/.test(name);
-}
-
-function requestRegister(username, password, name, _csrf) {
-    return new Promise((resolve, reject) => {
-        $.ajax({
-            url: '/api/v1/user/register',
-            type: 'POST',
-            data: JSON.stringify({
-                name: name.value,
-                username: username.value,
-                password: password.value
-            }),
-            headers: {
-                'X-CSRF-TOKEN': _csrf,
-                'Content-Type': 'application/json'
-            },
-            success: function (data) {
-                if (!data.error) {
-                    resolve(data);
+const userModule = {
+    requestRegister: (username, password, name, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/register',
+                type: 'POST',
+                data: JSON.stringify({
+                    name: name.value,
+                    username: username.value,
+                    password: password.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
                 }
-                else {
-                    reject(data.message);
-                }
-            },
-            error: function (data) {
-                reject(data.responseJSON.message);
-            }
+            });
         });
-    });
-}
-
-function requestLogin(username, password, _csrf) {
-    return new Promise((resolve, reject) => {
-        $.ajax({
-            url: '/api/v1/user/login',
-            type: 'POST',
-            data: JSON.stringify({
-                username: username.value,
-                password: password.value
-            }),
-            headers: {
-                'X-CSRF-TOKEN': _csrf,
-                'Content-Type': 'application/json'
-            },
-            success: function (data) {
-                if (!data.error) {
-                    security.setLocalStorage('token', data.token);
-                    resolve(data);
+    },
+    requestLogin: (username, password, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/login',
+                type: 'POST',
+                data: JSON.stringify({
+                    username: username.value,
+                    password: password.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        security.setLocalStorage('token', data.token);
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
                 }
-                else {
-                    reject(data.message);
-                }
-            },
-            error: function (data) {
-                reject(data.responseJSON.message);
-            }
+            });
         });
-    });
-}
+    }
+};
+
+const adminModule = {
+    requestLogin: (username, password, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/admin/login',
+                type: 'POST',
+                data: JSON.stringify({
+                    username: username.value,
+                    password: password.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        security.setLocalStorage('xtoken', data.token);
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    }
+};
 
 const page = document.getElementById('page');
 if (page !== null) {
@@ -120,10 +152,10 @@ if (page !== null) {
         var _csrf = document.getElementsByName('_csrf')[0].value;
 
         signin.addEventListener('click', function (e) {
-            if (!isValidUsername(username.value)) {
+            if (!validator.isValidUsername(username.value)) {
                 notify('خطا', 'نام کاربری نادرست است.', 2000);
             }
-            else if (!isValidPassword(password.value)) {
+            else if (!validator.isValidPassword(password.value)) {
                 notify('خطا', 'رمز عبور نادرست است.', 2000);
             }
             else {
@@ -149,13 +181,13 @@ if (page !== null) {
         var _csrf = document.getElementsByName('_csrf')[0].value;
 
         signup.addEventListener('click', function (e) {
-            if (!isValidName(_name.value)) {
+            if (!validator.isValidName(_name.value)) {
                 notify("خطا", "نام وارد شده صحیح نیست.", 2000);
             }
-            else if (!isValidUsername(username.value)) {
+            else if (!validator.isValidUsername(username.value)) {
                 notify("خطا", "نام کاربری صحیح نیست.", 2000);
             }
-            else if (!isValidPassword(password.value)) {
+            else if (!validator.isValidPassword(password.value)) {
                 notify("خطا", "رمز عبور صحیح نیست.", 2000);
             }
             else {
@@ -168,6 +200,34 @@ if (page !== null) {
                     },
                     function (message) {
                         notify("خطا", message, 2000);
+                    }
+                );
+            }
+        });
+    }
+    else if (page_t === 'admin_login') {
+        var username = document.getElementById('username');
+        var password = document.getElementById('password');
+        var signin = document.getElementById('signin');
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+
+        signin.addEventListener('click', function (e) {
+            if (!validator.isValidUsername(username.value)) {
+                notify('خطا', 'نام کاربری نادرست است.', 2000);
+            }
+            else if (!validator.isValidPassword(password.value)) {
+                notify('خطا', 'رمز عبور نادرست است.', 2000);
+            }
+            else {
+                adminModule.requestLogin(username, password, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'خوش آمدید.', 2000);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    },
+                    (error) => {
+                        notify('خطا', error, 2000);
                     }
                 );
             }

@@ -15,18 +15,7 @@ var cookieParser = require('cookie-parser');
 var csrfProtection = csrf({ cookie: true, sessionKey: process.env.CSRF_SESSION_KEY });
 var parseForm = express.urlencoded({ extended: false }); // unused yet
 
-// middlewares
-const loginRedirect = require('./middleware/user/login_redirect');
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(err) {
-    if (err) {
-        throw "Error connecting to MongoDB: " + err;
-    }
-});
-// load models
-const User = require('./models/User');
-
+// App config
 hbs.registerPartials(__dirname + '/views/partials');
 app.set('view engine', 'hbs');
 app.set('views', __dirname + '/views');
@@ -39,6 +28,94 @@ app.use(session({
     cookie: { secure: false } // secure: true for production when SSL available
 }));
 app.use(express.json());
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(err) {
+    if (err) {
+        throw "Error connecting to MongoDB: " + err;
+    }
+});
+
+// load models
+const User = require('./models/User');
+// initialize admin account if not exists
+User.findOne({ role: 'admin' }, function(err, user) {
+    if (err) {
+        throw "Error finding admin account: " + err;
+    }
+    if (!user) {
+        var admin = new User({
+            name: 'مدیر',
+            username: process.env.DEFAULT_ADMIN_USERNAME,
+            password: bcrypt.hashSync(process.env.DEFAULT_ADMIN_PASSWORD, 10),
+            role: 'admin'
+        });
+        admin.save(function(err) {
+            if (err) {
+                throw "Error initializing admin account: " + err;
+            }
+        });
+    }
+});
+
+// middlewares
+const userMiddleware = require('./middleware/user/user_middleware');
+const adminMiddleware = require('./middleware/admin/admin_middleware');
+
+// ********** Web API Admin Routes **********
+app.post('/api/v1/admin/login', csrfProtection, function(req, res) {
+    var username = req.body.username;
+    var password = req.body.password;
+    if (!username || !password) {
+        res.status(400).json({
+            error: true,
+            message: 'نام کاربری و رمز عبور را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidUsername(username) || !validator.isValidPassword(password)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام کاربری و رمز عبور را به درستی وارد کنید'
+            });
+        }
+        else {
+            User.findOne({ username: username, role: 'admin' }, function(err, user) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!user) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'نام کاربری یا رمز عبور اشتباه است'
+                    });
+                }
+                else {
+                    if (bcrypt.compareSync(password, user.password)) {
+                        var jwtoken = jwt.sign({
+                            user: user
+                        }, process.env.JWT_SECRET, { expiresIn: '1d' });
+                        req.session.user = user;
+                        res.status(200).json({
+                            error: false,
+                            message: 'ورود موفقیت آمیز بود',
+                            token: jwtoken
+                        });
+                    }
+                    else {
+                        res.status(400).json({
+                            error: true,
+                            message: 'نام کاربری یا رمز عبور اشتباه است'
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
 
 // ********** Web API Routes **********
 app.post('/api/v1/user/register', csrfProtection, (req, res) => {
@@ -101,7 +178,6 @@ app.post('/api/v1/user/register', csrfProtection, (req, res) => {
         }
     }
 });
-
 app.post('/api/v1/user/login', csrfProtection, (req, res) => {
     var username = req.body.username;
     var password = req.body.password;
@@ -121,7 +197,7 @@ app.post('/api/v1/user/login', csrfProtection, (req, res) => {
         }
         else {
             // check for user existence un-case sensitive
-            User.findOne({ username: username.toLowerCase() }, function(err, user) {
+            User.findOne({ username: username.toLowerCase(), role: 'user' }, function(err, user) {
                 if (err) {
                     res.status(500).json({
                         error: true,
@@ -132,7 +208,7 @@ app.post('/api/v1/user/login', csrfProtection, (req, res) => {
                 if (!user) {
                     res.status(400).json({
                         error: true,
-                        message: 'رمز عبور وارد شده اشتباه است.'
+                        message: 'نام کاربری یا کلمه عبور نادرست است.'
                     });
                 }
                 else {
@@ -153,7 +229,7 @@ app.post('/api/v1/user/login', csrfProtection, (req, res) => {
                     else {
                         res.status(400).json({
                             error: true,
-                            message: 'رمز عبور وارد شده اشتباه است.'
+                            message: 'نام کاربری یا کلمه عبور نادرست است.'
                         });
                     }
                 }
@@ -170,7 +246,7 @@ app.get('/', (req, res) => {
     });
 });
 
-app.get('/signin', csrfProtection, loginRedirect, (req, res) => {
+app.get('/signin', csrfProtection, userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/signin', {
         title: process.env.SITE_TITLE + ' - ورود',
         name: process.env.SITE_NAME,
@@ -179,7 +255,7 @@ app.get('/signin', csrfProtection, loginRedirect, (req, res) => {
     });
 });
 
-app.get('/signup', csrfProtection, (req, res) => {
+app.get('/signup', csrfProtection, userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/signup', {
         title: process.env.SITE_TITLE + ' - ثبت نام',
         name: process.env.SITE_NAME,
@@ -188,11 +264,21 @@ app.get('/signup', csrfProtection, (req, res) => {
     });
 });
 
-app.get('/dashboard', loginRedirect, (req, res) => {
+app.get('/dashboard', userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/dashboard', {
         title: process.env.SITE_TITLE + ' - داشبورد',
         name: process.env.SITE_NAME,
         page: 'dashboard'
+    });
+});
+
+// ********** Web Application Admin Routes **********
+app.get('/admin', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    res.render('layouts/admin/dashboard', {
+        title: process.env.SITE_TITLE + ' - پنل مدیریت',
+        name: process.env.SITE_NAME,
+        page: 'admin_dashboard',
+        user: req.session.user
     });
 });
 
