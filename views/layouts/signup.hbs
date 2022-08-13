@@ -20,13 +20,14 @@
     <section class="home" id="home">
 
         <div class="content">
-            <h3>ورود به حساب کاربری</h3>
-            <p id="ptext">برای ثبت سفارش به حساب کاربری خود وارد شوید.</p>
+            <h3>ایجاد حساب کاربری</h3>
+            <p id="ptext">برای ثبت سفارش یک حساب کاربری بسازید.</p>
+            <input id="name" name="name" class="textbox w80p" type="text" placeholder="نام و نام خانوادگی">
             <input id="username" name="username" class="textbox w80p mrt" type="text" placeholder="نام کاربری">
             <input id="password" name="password" class="textbox w80p mrt" type="password" placeholder="کلمه عبور">
             <input type="hidden" name="_csrf" value="{{csrfToken}}">
             <br>
-            <button id="signin" class="btn">ورود</button>
+            <button id="signup" class="btn">ثبت نام</button>
         </div>
 
         <div class="image">

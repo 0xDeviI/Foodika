@@ -6,10 +6,14 @@ const UserSchema = new Schema({
         type: String,
         required: true
     },
-    phone: {
+    username: {
         type: String,
         required: true,
-        length: 11
+        unique: true
+    },
+    password: {
+        type: String,
+        required: true
     },
     role: {
         type: String,
