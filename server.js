@@ -17,6 +17,24 @@ var parseForm = express.urlencoded({ extended: false }); // unused yet
 
 // App config
 hbs.registerPartials(__dirname + '/views/partials');
+hbs.registerHelper({
+    eq: (v1, v2) => v1 === v2,
+    ne: (v1, v2) => v1 !== v2,
+    lt: (v1, v2) => v1 < v2,
+    gt: (v1, v2) => v1 > v2,
+    lte: (v1, v2) => v1 <= v2,
+    gte: (v1, v2) => v1 >= v2,
+    and() {
+        return Array.prototype.every.call(arguments, Boolean);
+    },
+    or() {
+        return Array.prototype.slice.call(arguments, 0, -1).some(Boolean);
+    }
+});
+hbs.registerHelper('inc', function (index) {
+    index++;
+    return index;
+});
 app.set('view engine', 'hbs');
 app.set('views', __dirname + '/views');
 app.use(cookieParser());
@@ -38,6 +56,8 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(er
 
 // load models
 const User = require('./models/User');
+const FoodCategory = require('./models/FoodCategory');
+const Food = require('./models/Food');
 // initialize admin account if not exists
 User.findOne({ role: 'admin' }, function(err, user) {
     if (err) {
@@ -111,6 +131,58 @@ app.post('/api/v1/admin/login', csrfProtection, function(req, res) {
                             message: 'نام کاربری یا رمز عبور اشتباه است'
                         });
                     }
+                }
+            });
+        }
+    }
+});
+app.post('/api/v1/admin/category/add', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var name = req.body.name;
+    if (!name) {
+        res.status(400).json({
+            error: true,
+            message: 'نام دسته بندی را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidName(name)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام دسته بندی را به درستی وارد کنید'
+            });
+        }
+        else {
+            FoodCategory.findOne({ name: name }, function(err, category) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (category) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'دسته بندی با این نام قبلا ثبت شده است'
+                    });
+                }
+                else {
+                    var category = new FoodCategory({
+                        name: name
+                    });
+                    category.save(function(err) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else {
+                            res.status(200).json({
+                                error: false,
+                                message: 'دسته بندی با موفقیت ثبت شد'
+                            });
+                        }
+                    });
                 }
             });
         }
@@ -273,12 +345,60 @@ app.get('/dashboard', userMiddleware.loginRedirect, (req, res) => {
 });
 
 // ********** Web Application Admin Routes **********
+app.get('/admin/login', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    res.render('layouts/admin/login', {
+        title: process.env.SITE_TITLE + ' - ورود',
+        name: process.env.SITE_NAME,
+        csrfToken: req.csrfToken(),
+        page: 'admin_login'
+    });
+});
+
 app.get('/admin', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/admin/dashboard', {
         title: process.env.SITE_TITLE + ' - پنل مدیریت',
         name: process.env.SITE_NAME,
         page: 'admin_dashboard',
         user: req.session.user
+    });
+});
+
+app.get('/admin/addfood', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    res.render('layouts/admin/addfood', {
+        title: process.env.SITE_TITLE + ' - ثبت غذا',
+        name: process.env.SITE_NAME,
+        page: 'admin_addfood',
+        user: req.session.user
+    });
+});
+
+app.get('/admin/addcategory', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    res.render('layouts/admin/addcategory', {
+        title: process.env.SITE_TITLE + ' - ثبت دسته بندی',
+        name: process.env.SITE_NAME,
+        page: 'admin_addcategory',
+        user: req.session.user,
+        csrfToken: req.csrfToken()
+    });
+});
+
+app.get('/admin/categories', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    FoodCategory.find({}, function(err, categories) {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            res.render('layouts/admin/categories', {
+                title: process.env.SITE_TITLE + ' - دسته بندی ها',
+                name: process.env.SITE_NAME,
+                page: 'admin_categories',
+                user: req.session.user,
+                categories: categories
+            });
+        }
     });
 });
 

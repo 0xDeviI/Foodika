@@ -1,0 +1,80 @@
+<nav class="mt-2">
+    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+        <li class="nav-item">
+            <a href="/admin" class="nav-link {{#if (eq page 'admin_dashboard')}} active {{/if}}">
+                <i class="nav-icon fa fa-dashboard"></i>
+                <p>
+                    داشبورد
+                </p>
+            </a>
+        </li>
+        <li class="nav-item has-treeview {{#if (or 
+        (eq page 'admin_addfood') (eq page 'admin_foods') (eq page 'admin_addcategory') (eq page 'admin_categories'))}} menu-open {{/if}}">
+            <a href="javascript:void(0)" class="nav-link {{#if (or 
+        (eq page 'admin_addfood') (eq page 'admin_foods') (eq page 'admin_addcategory') (eq page 'admin_categories'))}} active {{/if}}">
+                <i class="nav-icon fa fa-spoon"></i>
+                <p>
+                    محصولات
+                    <i class="right fa fa-angle-left"></i>
+                </p>
+            </a>
+            <ul class="nav nav-treeview">
+                <li class="nav-item">
+                    <a href="/admin/addfood" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>افزودن غذا</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/foods" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>لیست غذا ها</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/addcategory" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>افزودن دسته بندی</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/categories" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>لیست دسته بندی ها</p>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="nav-item has-treeview">
+            <a href="javascript:void(0);" class="nav-link">
+                <i class="nav-icon fa fa-users"></i>
+                <p>
+                    کاربران
+                    <i class="fa fa-angle-left right"></i>
+                </p>
+            </a>
+            <ul class="nav nav-treeview">
+                <li class="nav-item">
+                    <a href="/admin/adduser" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>افزودن کاربر</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/users" class="nav-link">
+                        <i class="fa fa-circle-o nav-icon"></i>
+                        <p>لیست کاربران</p>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="nav-item">
+            <a href="/admin/settings" class="nav-link">
+                <i class="nav-icon fa fa-gear"></i>
+                <p>
+                    تنظیمات
+                </p>
+            </a>
+        </li>
+    </ul>
+</nav>

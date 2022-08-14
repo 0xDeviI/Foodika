@@ -48,7 +48,7 @@ const validator = {
         return /^[a-zA-Z0-9_!@#${}:>]{3,}$/.test(password);
     },
     isValidName: (name) => {
-        return /^[\u0600-\u06FF\s]+$/.test(name);
+        return /^[\u0600-\u06FF\s\d]+$/.test(name);
     }
 };
 
@@ -139,6 +139,32 @@ const adminModule = {
                 }
             });
         });
+    },
+    requestAddCategory: (name, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/admin/category/add',
+                type: 'POST',
+                data: JSON.stringify({
+                    name: name.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
     }
 };
 
@@ -159,7 +185,7 @@ if (page !== null) {
                 notify('خطا', 'رمز عبور نادرست است.', 2000);
             }
             else {
-                requestLogin(username, password, _csrf).then(
+                userModule.requestLogin(username, password, _csrf).then(
                     (data) => {
                         notify('موفق', 'خوش آمدید.', 2000);
                         setTimeout(() => {
@@ -191,7 +217,7 @@ if (page !== null) {
                 notify("خطا", "رمز عبور صحیح نیست.", 2000);
             }
             else {
-                requestRegister(username, password, _name, _csrf).then(
+                userModule.requestRegister(username, password, _name, _csrf).then(
                     function (data) {
                         notify("موفق", "حساب کاربری ایجاد شد.", 2000);
                         setTimeout(function () {
@@ -223,7 +249,7 @@ if (page !== null) {
                     (data) => {
                         notify('موفق', 'خوش آمدید.', 2000);
                         setTimeout(() => {
-                            window.location.reload();
+                            window.location = '/admin';
                         }, 2000);
                     },
                     (error) => {
@@ -232,5 +258,32 @@ if (page !== null) {
                 );
             }
         });
+    }
+    else if (page_t === 'admin_addcategory') {
+        var category_name = document.getElementById('category_name');
+        var submit = document.getElementById('submit');
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+
+        submit.addEventListener('click', function (e) {
+            if (!validator.isValidName(category_name.value)) {
+                notify('خطا', 'نام دسته بندی نادرست است.', 2000);
+            }
+            else {
+                adminModule.requestAddCategory(category_name, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'دسته بندی ایجاد شد.', 2000);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        });
+    }
+    else if (page_t === 'admin_categories') {
+        // should be implemented
     }
 }
