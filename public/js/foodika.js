@@ -265,6 +265,61 @@ const adminModule = {
                 }
             });
         });
+    },
+    requestDeleteFood: (id, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/food/${id}`,
+                type: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestEditFood: (id, name, description, category, image, price, available, _csrf) => {
+        var formData = new FormData();
+        formData.append('name', name.value);
+        formData.append('description', description.value);
+        formData.append('category', category.value);
+        formData.append('image', image.files[0]);
+        formData.append('price', price.value);
+        formData.append('available', available.checked.toString());
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/food/${id}`,
+                type: 'PUT',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': _csrf
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
     }
 };
 
@@ -453,6 +508,72 @@ if (page !== null) {
                 adminModule.requestAddFood(food_name, food_description, food_category, food_image, food_price, isAvailable, _csrf).then(
                     (data) => {
                         notify('موفق', 'غذا جدید ثبت شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+            
+        });
+    }
+    else if (page_t === 'admin_foods') {
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+        function deleteFood(obj) {
+            var confirm = window.confirm('آیا از حذف این غذا اطمینان دارید؟');
+            if (confirm) {
+                var id = obj.getAttribute('data-id');
+                adminModule.requestDeleteFood(id, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'غذا حذف شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        }
+    }
+    else if (page_t === 'admin_editfood') {
+        var food_name = document.getElementById('food_name');
+        var food_id = food_name.getAttribute('data-id');
+        var food_description = document.getElementById('food_desc');
+        var food_category = document.getElementById('food_category');
+        var food_image = document.getElementById('food_image');
+        var food_price = document.getElementById('food_price');
+        var isAvailable = document.getElementById('food_availability');
+        var submit = document.getElementById('submit');
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+
+        submit.addEventListener('click', function (e) {
+            if (!validator.isValidName(food_name.value)) {
+                notify('خطا', 'نام غذا غیرمجاز است.', 2000);
+            }
+            else if (!validator.isValidFoodDescription(food_description.value)) {
+                notify('خطا', 'توضیحات غذا غیرمجاز است.', 2000);
+            }
+            else if (!validator.isValidObjectId(food_category.value)) {
+                notify('خطا', 'دسته بندی غذا غیرمجاز است.', 2000);
+            }
+            else if (!validator.isValidImage(food_image.files[0])) {
+                notify('خطا', 'تصویر غذا غیرمجاز است.', 2000);
+            }
+            else if (!validator.isValidPrice(food_price.value)) {
+                notify('خطا', 'قیمت غذا غیرمجاز است.', 2000);
+            }
+            else if (!validator.isValidObjectId(food_id)) {
+                notify('خطا', 'شناسه غذا غیرمجاز است.', 2000);
+            }
+            else {
+                adminModule.requestEditFood(food_id, food_name, food_description, food_category, food_image, food_price, isAvailable, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'غذا ویرایش شد.', 500);
                         setTimeout(() => {
                             window.location.reload();
                         }, 500);

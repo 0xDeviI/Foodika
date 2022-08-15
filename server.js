@@ -442,6 +442,163 @@ app.post('/api/v1/admin/food/add', upload.single("image"), csrfProtection, admin
         }
     }
 });
+app.delete('/api/v1/admin/food/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    if (!validator.isValidObjectId(id)) {
+        res.status(400).json({
+            error: true,
+            message: 'شناسه غذا را به درستی وارد کنید'
+        });
+    }
+    else {
+        Food.findById(id, function(err, food) {
+            if (err) {
+                res.status(500).json({
+                    error: true,
+                    message: 'خطا در برقراری ارتباط با سرور'
+                });
+            }
+            else if (!food) {
+                res.status(400).json({
+                    error: true,
+                    message: 'غذا مورد نظر یافت نشد'
+                });
+            }
+            else {
+                // remove image
+                if (food.image) {
+                    fs.unlink(`public/${food.image}`, function(err) {});
+                }
+                food.remove(function(err) {
+                    if (err) {
+                        res.status(500).json({
+                            error: true,
+                            message: 'خطا در برقراری ارتباط با سرور'
+                        });
+                    }
+                    else {
+                        res.status(200).json({
+                            error: false,
+                            message: 'غذا با موفقیت حذف شد'
+                        });
+                    }
+                });
+            }
+        });
+    }
+});
+app.put('/api/v1/admin/food/:id', upload.single('image'), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    var name = req.body.name;
+    var description = req.body.description;
+    var category = req.body.category;
+    var image = req.file ? req.file.path : null;
+    var price = req.body.price;
+    var available = req.body.available;
+    if (!name || !category || !price || !available) {
+        res.status(400).json({
+            error: true,
+            message: 'نام غذا، دسته بندی، قیمت و موجودی را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'شناسه غذا را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidObjectId(category)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام دسته بندی را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidPrice(price)) {
+            res.status(400).json({
+                error: true,
+                message: 'قیمت غذا را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidFoodDescription(description)) {
+            res.status(400).json({
+                error: true,
+                message: 'توضیحات غذا را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidName(name)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام غذا را به درستی وارد کنید'
+            });
+        }
+        else {
+            FoodCategory.findOne({ _id: category }, function(err, category) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!category) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'دسته بندی مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    Food.findById(id, function(err, food) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else if (!food) {
+                            res.status(400).json({
+                                error: true,
+                                message: 'غذا مورد نظر یافت نشد'
+                            });
+                        }
+                        else {
+                            // remove image path before /uploads
+                            if (image) {
+                                let imageSplit = image.split('\\');
+                                image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
+                            }
+                            // remove old image
+                            if (food.image) {
+                                fs.unlink(`public/${food.image}`, function(err) {});
+                            }
+                            food.name = name;
+                            food.description = description;
+                            food.category = category;
+                            food.image = image;
+                            food.price = price;
+                            food.isAvailable = available;
+                            food.save(function(err) {
+                                if (err) {
+                                    res.status(500).json({
+                                        error: true,
+                                        message: 'خطا در برقراری ارتباط با سرور'
+                                    });
+                                }
+                                else {
+                                    res.status(200).json({
+                                        error: false,
+                                        message: 'غذا با موفقیت ویرایش شد'
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+});
+        
+
 
 // ********** Web API Routes **********
 app.post('/api/v1/user/register', csrfProtection, (req, res) => {
@@ -668,6 +825,96 @@ app.get('/admin/categories', csrfProtection, adminMiddleware.loginRedirect, (req
                 user: req.session.user,
                 categories: categories,
                 csrfToken: req.csrfToken()
+            });
+        }
+    });
+});
+
+app.get('/admin/foods', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    // Foods and FoodCategories union
+    Food.find({}, (err, foods) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            FoodCategory.find({}, (err, categories) => {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    });
+                }
+                else {
+                    // find reference to food category using category id
+                    for (let i = 0; i < foods.length; i++) {
+                        for (let j = 0; j < categories.length; j++) {
+                            let foodCategoryID = foods[i].category.toString();
+                            let categoryID = categories[j]._id.toString();
+                            if (foodCategoryID == categoryID) {
+                                foods[i].category_name = categories[j].name;
+                            }
+                        }
+                    }
+                    res.render('layouts/admin/foods', {
+                        title: process.env.SITE_TITLE + ' - غذاها',
+                        name: process.env.SITE_NAME,
+                        page: 'admin_foods',
+                        user: req.session.user,
+                        foods: foods,
+                        categories: categories,
+                        csrfToken: req.csrfToken()
+                    });
+                }
+            });
+        }
+    });
+});
+
+app.get('/admin/food/:id', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    let id = req.params.id;
+    Food.findById(id, (err, food) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else if (!food) {
+            res.status(404).json({
+                error: true,
+                message: 'غذای مورد نظر یافت نشد.'
+            });
+        }
+        else {
+            FoodCategory.find({}, (err, categories) => {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    });
+                }
+                else {
+                    // find reference to food category using category id
+                    for (let j = 0; j < categories.length; j++) {
+                        let foodCategoryID = food.category.toString();
+                        let categoryID = categories[j]._id.toString();
+                        if (foodCategoryID == categoryID) {
+                            food.category_name = categories[j].name;
+                        }
+                    }
+                    res.render('layouts/admin/editfood', {
+                        title: process.env.SITE_TITLE + ' - ویرایش غذا',
+                        name: process.env.SITE_NAME,
+                        page: 'admin_editfood',
+                        user: req.session.user,
+                        food: food,
+                        categories: categories,
+                        csrfToken: req.csrfToken()
+                    });
+                }
             });
         }
     });

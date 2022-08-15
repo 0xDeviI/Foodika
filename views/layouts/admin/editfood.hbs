@@ -35,6 +35,7 @@
         integrity="sha512-E8QSvWZ0eCLGk4km3hxSsNmGWbLtSCSUcewDQPQWZF6pEU8GlT8a5fF32wOl1i8ftdMhssTrF/OhyGWwonTcXA=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link rel="icon" href="/images/utensils-solid.svg">
+
 </head>
 
 <body class="hold-transition sidebar-mini">
@@ -82,7 +83,7 @@
                 <div class="container-fluid">
                     <div class="row mb-2">
                         <div class="col-sm-6">
-                            <h1 class="m-0 text-dark">دسته بندی غذا ها</h1>
+                            <h1 class="m-0 text-dark">ویرایش غذا</h1>
                         </div>
                     </div>
                 </div>
@@ -94,63 +95,67 @@
                     <!-- /.row -->
                     <!-- Main row -->
                     <div class="row">
-                        <input type="hidden" name="_csrf" value="{{csrfToken}}">
                         <div class="col-md-12">
-                            {{#if (eq foods.length 0)}}
-                            <div class="alert">
-                                <h5 class="alert-heading">هنوز غذایی ثبت نشده است!</h5>
-                                <a style="text-decoration: none;" class="btn btn-primary btn-sm"
-                                    href="/admin/addfood">ثبت غذا جدید</a>
-                            </div>
-                            {{else}}
-
                             <div class="card card-success">
                                 <div class="card-header">
-                                    <h3 class="card-title">غذاها</h3>
+                                    <h3 class="card-title">ثبت اطلاعات</h3>
                                 </div>
                                 <!-- /.card-header -->
-                                <div class="card-body p-0">
-                                    <table class="table table-condensed">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 10px">#</th>
-                                                <th style="width: 100px; height: 100px;">تصویر</th>
-                                                <th>نام غذا</th>
-                                                <th>دسته بندی</th>
-                                                <th>موجودیت</th>
-                                                <th>قیمت</th>
-                                                <th style="width: 150px;">عملیات</th>
-                                            </tr>
-                                            {{#each foods}}
-                                            <tr>
-                                                <td>{{inc @index}}</td>
-                                                <td>
-                                                    {{#if image}}
-                                                    <img src="/{{image}}" alt="{{name}}" class="img-fluid"
-                                                        style="width: 100px; height: 100px;">
-                                                    {{else}}
-                                                    <img src="/images/default-product.png" alt="{{name}}" class="img-fluid"
-                                                        style="width: 100px; height: 100px;">
-                                                    {{/if}}
-                                                </td>
-                                                <td>{{name}}</td>
-                                                <td>{{category_name}}</td>
-                                                <td>
-                                                    <input disabled type="checkbox" {{#if (eq isAvailable true)}} checked {{/if}}>
-                                                </td>
-                                                <td>{{price}} تومان</td>
-                                                <td>
-                                                    <a href="/admin/food/{{id}}"
-                                                        class="btn btn-primary btn-sm" target="_blank">ویرایش</a>
-                                                    <button class="btn btn-danger btn-sm" id="delete-food"
-                                                        data-id="{{id}}" onclick="deleteFood(this);">حذف</button>
-                                                </td>
-                                                {{/each}}
-                                        </tbody>
-                                    </table>
+                                <div class="card-body">
+                                    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                                    <div class="form-group">
+                                        <label for="food_name">نام غذا</label>
+                                        <input data-id="{{food.id}}" type="text" class="form-control" id="food_name"
+                                            placeholder="نام غذا را وارد کنید" value="{{food.name}}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="food_desc">توضیحات</label>
+                                        <textarea class="form-control" id="food_desc"
+                                            placeholder="توضیحات غذا را وارد کنید">{{food.description}}</textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="food_category">دسته بندی</label>
+                                        <select class="form-control" id="food_category">
+                                            {{#each categories}}
+                                                <option value="{{id}}">{{name}}</option>
+                                            {{/each}}
+                                        </select>
+                                        <script>
+                                            document.getElementById('food_category').value = '{{food.category}}';
+                                        </script>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="food_image">بارگزاری تصویر</label>
+                                        <div class="input-group">
+                                            <div class="custom-file">
+                                                <input type="file" name="food_image" class="custom-file-input"
+                                                    id="food_image">
+                                                <label class="custom-file-label" for="exampleInputFile">انتخاب
+                                                    تصویر</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="food_price">قیمت</label>
+                                        <input type="number" class="form-control" id="food_price"
+                                            placeholder="قیمت غذا را وارد کنید" value="{{food.price}}">
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="col-sm-offset-2 col-sm-10">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="food_availability" {{#if (eq food.isAvailable true)}} checked {{/if}}>
+                                                <label class="form-check-label" for="food_availability">آیا غدا موجود
+                                                    است؟</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- /.card-body -->
+
+                                <div class="card-footer">
+                                    <button id="submit" type="button" class="btn btn-primary">ثبت</button>
                                 </div>
                             </div>
-                            {{/if}}
                         </div>
                     </div>
                     <!-- /.row (main row) -->
