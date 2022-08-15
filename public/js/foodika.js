@@ -165,6 +165,55 @@ const adminModule = {
                 }
             });
         });
+    },
+    requestDeleteCategory: (id, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/category/${id}`,
+                type: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestEditCategory: (id, name, _csrf) => {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/category/${id}`,
+                type: 'PUT',
+                data: JSON.stringify({
+                    name: name
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
     }
 };
 
@@ -271,10 +320,10 @@ if (page !== null) {
             else {
                 adminModule.requestAddCategory(category_name, _csrf).then(
                     (data) => {
-                        notify('موفق', 'دسته بندی ایجاد شد.', 2000);
+                        notify('موفق', 'دسته بندی ایجاد شد.', 500);
                         setTimeout(() => {
                             window.location.reload();
-                        }, 2000);
+                        }, 500);
                     },
                     (message) => {
                         notify('خطا', message, 2000);
@@ -284,6 +333,43 @@ if (page !== null) {
         });
     }
     else if (page_t === 'admin_categories') {
-        // should be implemented
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+        function deleteCategory(obj) {
+            var confirm = window.confirm('آیا از حذف این دسته بندی اطمینان دارید؟');
+            if (confirm) {
+                var id = obj.getAttribute('data-id');
+                adminModule.requestDeleteCategory(id, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'دسته بندی حذف شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        }
+        function editCategory(obj) {
+            var id = obj.getAttribute('data-id');
+            var newCategory = prompt('نام جدید دسته بندی را وارد کنید.');
+            if (!validator.isValidName(newCategory)) {
+                notify('خطا', 'نام جدید دسته بندی نادرست است.', 2000);
+            }
+            else {
+                adminModule.requestEditCategory(id, newCategory, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'دسته بندی ویرایش شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        }
     }
 }

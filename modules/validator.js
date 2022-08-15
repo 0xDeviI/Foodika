@@ -7,6 +7,9 @@ const validator = {
     },
     isValidName: (name) => {
         return /^[\u0600-\u06FF\s\d]+$/.test(name);
+    },
+    isValidObjectId: (objectId) => {
+        return /^[0-9a-fA-F]{24}$/.test(objectId);
     }
 };
 

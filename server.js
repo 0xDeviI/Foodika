@@ -188,6 +188,123 @@ app.post('/api/v1/admin/category/add', csrfProtection, adminMiddleware.adminAllo
         }
     }
 });
+app.delete('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'شناسه دسته بندی را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'شناسه دسته بندی را به درستی وارد کنید'
+            });
+        }
+        else {
+            FoodCategory.findById(id, function(err, category) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!category) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'دسته بندی مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    FoodCategory.deleteOne({ _id: id }, function(err) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else {
+                            res.status(200).json({
+                                error: false,
+                                message: 'دسته بندی با موفقیت حذف شد'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+});
+app.put('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    var name = req.body.name;
+    if (!id || !name) {
+        res.status(400).json({
+            error: true,
+            message: 'شناسه دسته بندی و نام دسته بندی را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'شناسه دسته بندی را به درستی وارد کنید'
+            });
+        }
+        else {
+            FoodCategory.findById(id, function(err, category) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!category) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'دسته بندی مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    FoodCategory.findOne({ name: name }, function(err, category2) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else if (category2) {
+                            res.status(400).json({
+                                error: true,
+                                message: 'دسته بندی با این نام قبلا ثبت شده است'
+                            });
+                        }
+                        else {
+                            category.name = name;
+                            category.save(function(err) {
+                                if (err) {
+                                    res.status(500).json({
+                                        error: true,
+                                        message: 'خطا در برقراری ارتباط با سرور'
+                                    });
+                                }
+                                else {
+                                    res.status(200).json({
+                                        error: false,
+                                        message: 'دسته بندی با موفقیت ویرایش شد'
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+});
 
 // ********** Web API Routes **********
 app.post('/api/v1/user/register', csrfProtection, (req, res) => {
@@ -396,7 +513,8 @@ app.get('/admin/categories', csrfProtection, adminMiddleware.loginRedirect, (req
                 name: process.env.SITE_NAME,
                 page: 'admin_categories',
                 user: req.session.user,
-                categories: categories
+                categories: categories,
+                csrfToken: req.csrfToken()
             });
         }
     });
