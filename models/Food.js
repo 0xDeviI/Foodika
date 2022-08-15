@@ -12,11 +12,12 @@ const FoodSchema = new Schema({
     },
     description: {
         type: String,
-        required: true
+        required: false,
+        maxlength: 512
     },
     image: {
         type: String,
-        required: true
+        required: false
     },
     category: {
         type: Schema.Types.ObjectId,

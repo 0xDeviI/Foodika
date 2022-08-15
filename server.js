@@ -9,6 +9,8 @@ const uuid4 = require('./modules/uuid'); // unused
 const session = require('express-session');
 const validator = require('./modules/validator');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const multer = require('multer');
 const PORT = process.env.PORT || 3000;
 dotenv.config();
 var cookieParser = require('cookie-parser');
@@ -46,6 +48,40 @@ app.use(session({
     cookie: { secure: false } // secure: true for production when SSL available
 }));
 app.use(express.json());
+// check if /uploads folder exists, if not create it
+if (!fs.existsSync(__dirname + '/public/uploads')) {
+    fs.mkdirSync(__dirname + '/public/uploads');
+}
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, __dirname + '/public/uploads');
+    },
+    filename: (req, file, cb) => {
+        // uuid is used to generate unique filenames
+        var filesplit = file.originalname.split('.');
+        var ext = filesplit[filesplit.length - 1];
+        cb(null, uuid4() + '.' + ext);
+    }
+});
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: process.env.MAXIMUM_IMAGE_SIZE },
+    fileFilter: (req, file, cb) => {
+        var fileName = file.originalname.toLowerCase();
+        var fileNameSplit = fileName.split('.');
+        var fileExt = fileNameSplit[fileNameSplit.length - 1];
+        var allowedFileExtensions = process.env.ALLOWED_FILE_EXTENSIONS;
+        var allowedFileMimeTypes = process.env.ALLOWED_MIME_TYPES;
+        allowedFileExtensions = allowedFileExtensions.split(' ');
+        allowedFileMimeTypes = allowedFileMimeTypes.split(' ');
+        if (allowedFileExtensions.includes(fileExt) && allowedFileMimeTypes.includes(file.mimetype)) {
+            cb(null, true);
+        }
+        else {
+            cb(null, false);
+        }
+    }
+});
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(err) {
@@ -305,6 +341,107 @@ app.put('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllow
     }
 
 });
+app.post('/api/v1/admin/food/add', upload.single("image"), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var name = req.body.name;
+    var description = req.body.description;
+    var category = req.body.category;
+    var image = req.file ? req.file.path : null;
+    var price = req.body.price;
+    var available = req.body.available;
+    if (!name || !category || !price || !available) {
+        res.status(400).json({
+            error: true,
+            message: 'نام غذا، دسته بندی، قیمت و موجودی را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(category)) {
+            res.status(400).json({
+                error: true,
+                message: 'شناسه دسته بندی را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidPrice(price)) {
+            res.status(400).json({
+                error: true,
+                message: 'قیمت غذا را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidFoodDescription(description)) {
+            res.status(400).json({
+                error: true,
+                message: 'توضیحات غذا را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidName(name)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام غذا را به درستی وارد کنید'
+            });
+        }
+        else {
+            FoodCategory.findById(category, function(err, category) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!category) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'دسته بندی مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    Food.findOne({ name: name }, function(err, food) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else if (food) {
+                            res.status(400).json({
+                                error: true,
+                                message: 'غذا با این نام قبلا ثبت شده است'
+                            });
+                        }
+                        else {
+                            // remove image path before /uploads
+                            if (image) {
+                                let imageSplit = image.split('\\');
+                                image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
+                            }
+                            var food = new Food({
+                                name: name,
+                                description: description,
+                                category: category,
+                                image: image,
+                                price: price,
+                                isAvailable: available
+                            });
+                            food.save(function(err) {
+                                if (err) {
+                                    res.status(500).json({
+                                        error: true,
+                                        message: 'خطا در برقراری ارتباط با سرور'
+                                    });
+                                }
+                                else {
+                                    res.status(200).json({
+                                        error: false,
+                                        message: 'غذا با موفقیت ثبت شد'
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+});
 
 // ********** Web API Routes **********
 app.post('/api/v1/user/register', csrfProtection, (req, res) => {
@@ -481,11 +618,27 @@ app.get('/admin', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
 });
 
 app.get('/admin/addfood', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
-    res.render('layouts/admin/addfood', {
-        title: process.env.SITE_TITLE + ' - ثبت غذا',
-        name: process.env.SITE_NAME,
-        page: 'admin_addfood',
-        user: req.session.user
+    FoodCategory.find({}, (err, categories) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            if (categories.length == 0)
+                categories.push({
+                    _id: '0',
+                    name: 'دسته بندی نشده'
+                });
+            res.render('layouts/admin/addfood', {
+                title: process.env.SITE_TITLE + ' - ثبت غذا',
+                name: process.env.SITE_NAME,
+                csrfToken: req.csrfToken(),
+                page: 'admin_addfood',
+                categories: categories
+            });
+        }
     });
 });
 
