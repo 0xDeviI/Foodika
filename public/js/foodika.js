@@ -586,4 +586,34 @@ if (page !== null) {
             
         });
     }
+    else if (page_t === 'food') {
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+
+        function addToCart(obj) {
+            var id = obj.getAttribute('data-id');
+            var available = obj.getAttribute('data-available');
+            if (available !== 'true') {
+                notify('خطا', 'این غذا در دسترس نمی باشد.', 2000);
+            }
+            else {
+                let isLoggedIn = security.getLocalStorage('isLoggedIn');
+                if (isLoggedIn !== 'true') {
+                    notify('خطا', 'برای خرید ابتدا وارد شوید.', 2000);
+                }
+                else {
+                    userModule.requestAddToCart(id, _csrf).then(
+                        (data) => {
+                            notify('موفق', 'به سبد خرید اضافه شد.', 500);
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
+                        },
+                        (message) => {
+                            notify('خطا', message, 2000);
+                        }
+                    );
+                }
+            }
+        }
+    }
 }

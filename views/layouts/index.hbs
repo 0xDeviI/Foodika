@@ -1,32 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> {{title}} </title>
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="images/utensils-solid.svg">
+    {{> userrequired}}
 </head>
+
 <body>
 
-{{> menu}}
+    {{> header}}
 
-<section class="home" id="home">
+    <section class="home" id="home">
 
-    <div class="content">
-        <h3>غذای پخته شده با عشق</h3>
-        <p>وقت غذاست؟ فودیکا همراه شماست. انتخاب کن، سفارش بده، در خونته!</p>
-        <a href="#" class="btn">اکنون سفارش دهید</a>
+        <div class="content">
+            <h3>غذای پخته شده با عشق</h3>
+            <p>وقت غذاست؟ {{name}} همراه شماست. انتخاب کن، سفارش بده، در خونته!</p>
+            <a href="#" class="btn">اکنون سفارش دهید</a>
+        </div>
+
+
+        <div class="image">
+            <img src="images/home-img.png" alt="">
+        </div>
+
+    </section>
+
+    <!-- home section ends -->
+    <section class="popular" id="popular">
+
+        <h1 class="heading">منوی <span>{{name}}</span></h1>
+
+        <div class="box-container">
+            {{> foodloop}}
+        </div>
+
+    </section>
+
+    <div class="step-container">
+
+        <h1 class="heading"> <span>{{name}}</span> چگونه کار میکند </h1>
+
+        <section class="steps">
+
+            <div class="box">
+                <img src="images/step-1.jpg" alt="">
+                <h3>غذای خود را انتخاب کنید</h3>
+            </div>
+            <div class="box">
+                <img src="images/step-2.jpg" alt="">
+                <h3>تحویل رایگان و سریع</h3>
+            </div>
+            <div class="box">
+                <img src="images/step-3.jpg" alt="">
+                <h3>روش های پرداخت آسان</h3>
+            </div>
+            <div class="box">
+                <img src="images/step-4.jpg" alt="">
+                <h3>از غذای خود لذت ببرید</h3>
+            </div>
+
+        </section>
+
     </div>
-
-    <div class="image">
-        <img src="images/home-img.png" alt="">
-    </div>
-
-</section>
-
-
+    {{> mainfooter }}
 </body>
+
 </html>

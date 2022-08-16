@@ -49,12 +49,12 @@ app.use(session({
 }));
 app.use(express.json());
 // check if /uploads folder exists, if not create it
-if (!fs.existsSync(__dirname + '/public/uploads')) {
-    fs.mkdirSync(__dirname + '/public/uploads');
+if (!fs.existsSync(__dirname + `/public/${process.env.FOODS_IMAGE_LOCATION}`)) {
+    fs.mkdirSync(__dirname + `/public/${process.env.FOODS_IMAGE_LOCATION}`);
 }
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, __dirname + '/public/uploads');
+        cb(null, __dirname + `/public/${process.env.FOODS_IMAGE_LOCATION}`);
     },
     filename: (req, file, cb) => {
         // uuid is used to generate unique filenames
@@ -413,6 +413,9 @@ app.post('/api/v1/admin/food/add', upload.single("image"), csrfProtection, admin
                                 let imageSplit = image.split('\\');
                                 image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
                             }
+                            else {
+                                image = process.env.FOODS_DEFAULT_IMAGE;
+                            }
                             var food = new Food({
                                 name: name,
                                 description: description,
@@ -466,7 +469,7 @@ app.delete('/api/v1/admin/food/:id', csrfProtection, adminMiddleware.adminAllowe
             }
             else {
                 // remove image
-                if (food.image) {
+                if (food.image && food.image !== process.env.FOODS_DEFAULT_IMAGE) {
                     fs.unlink(`public/${food.image}`, function(err) {});
                 }
                 food.remove(function(err) {
@@ -566,8 +569,11 @@ app.put('/api/v1/admin/food/:id', upload.single('image'), csrfProtection, adminM
                                 let imageSplit = image.split('\\');
                                 image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
                             }
+                            else {
+                                image = process.env.FOODS_DEFAULT_IMAGE;
+                            }
                             // remove old image
-                            if (food.image) {
+                            if (food.image && food.image !== process.env.FOODS_DEFAULT_IMAGE) {
                                 fs.unlink(`public/${food.image}`, function(err) {});
                             }
                             food.name = name;
@@ -722,37 +728,176 @@ app.post('/api/v1/user/login', csrfProtection, (req, res) => {
 });
 
 // ********** Web Application Routes **********
-app.get('/', (req, res) => {
-    res.render('layouts/index', {
-        title: process.env.SITE_TITLE,
-        name: process.env.SITE_NAME
+app.get('/', userMiddleware.userData, (req, res) => {
+    Food.find({}, function(err, foods) {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            FoodCategory.find({}, function(err, foodCategories) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    });
+                }
+                else {
+                    for (let i = 0; i < foods.length; i++) {
+                        for (let j = 0; j < foodCategories.length; j++) {
+                            let foodCategoryID = foods[i].category.toString();
+                            let categoryID = foodCategories[j]._id.toString();
+                            if (foodCategoryID == categoryID) {
+                                foods[i].category_name = foodCategories[j].name;
+                            }
+                        }
+                    }
+                    res.render('layouts/index', {
+                        title: process.env.SITE_TITLE,
+                        name: process.env.SITE_NAME,
+                        foods: foods,
+                        isLoggedIn: req.isLoggedIn
+                    });
+                }
+            });
+        }
     });
 });
 
-app.get('/signin', csrfProtection, userMiddleware.loginRedirect, (req, res) => {
+app.get('/signin', userMiddleware.userData, csrfProtection, userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/signin', {
         title: process.env.SITE_TITLE + ' - ورود',
         name: process.env.SITE_NAME,
         csrfToken: req.csrfToken(),
-        page: 'signin'
+        page: 'signin',
+        isLoggedIn: req.isLoggedIn
     });
 });
 
-app.get('/signup', csrfProtection, userMiddleware.loginRedirect, (req, res) => {
+app.get('/signup', userMiddleware.userData, csrfProtection, userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/signup', {
         title: process.env.SITE_TITLE + ' - ثبت نام',
         name: process.env.SITE_NAME,
         csrfToken: req.csrfToken(),
-        page: 'signup'
+        page: 'signup',
+        isLoggedIn: req.isLoggedIn
     });
 });
 
-app.get('/dashboard', userMiddleware.loginRedirect, (req, res) => {
+app.get('/dashboard', userMiddleware.userData, userMiddleware.loginRedirect, (req, res) => {
     res.render('layouts/dashboard', {
         title: process.env.SITE_TITLE + ' - داشبورد',
         name: process.env.SITE_NAME,
-        page: 'dashboard'
+        page: 'dashboard',
+        isLoggedIn: req.isLoggedIn
     });
+});
+
+app.get('/category/:name', userMiddleware.userData, (req, res) => {
+    let name = req.params.name;
+    if (!validator.isValidName(name)) {
+        res.status(404).json({
+            error: true,
+            message: 'دسته بندی مورد نظر یافت نشد.'
+        });
+    }
+    else {
+        FoodCategory.findOne({name: name}, (err, category) => {
+            if (err) {
+                res.status(500).json({
+                    error: true,
+                    message: 'خطا در برقراری ارتباط با سرور.'
+                });
+            }
+            else if (!category) {
+                res.status(404).json({
+                    error: true,
+                    message: 'دسته بندی مورد نظر یافت نشد.'
+                });
+            }
+            else {
+                Food.find({category: category._id}, (err, foods) => {
+                    if (err) {
+                        res.status(500).json({
+                            error: true,
+                            message: 'خطا در برقراری ارتباط با سرور.'
+                        });
+                    }
+                    else {
+                        for (let i = 0; i < foods.length; i++) {
+                            let foodCategoryID = foods[i].category.toString();
+                            let categoryID = category._id.toString();
+                            if (foodCategoryID == categoryID) {
+                                    foods[i].category_name = category.name;
+                            }
+                        }
+                        res.render('layouts/category', {
+                            title: process.env.SITE_TITLE + ' - ' + category.name,
+                            name: process.env.SITE_NAME,
+                            page: 'category',
+                            foods: foods,
+                            isLoggedIn: req.isLoggedIn
+                        });
+                    }
+                });
+            }
+        });
+    }
+});
+
+app.get('/food/:id', userMiddleware.userData, csrfProtection, (req, res) => {
+    let id = req.params.id;
+    if (!validator.isValidObjectId(id)) {
+        res.status(404).json({
+            error: true,
+            message: 'غذا مورد نظر یافت نشد.'
+        });
+    }
+    else {
+        Food.findById(id, (err, food) => {
+            if (err) {
+                res.status(500).json({
+                    error: true,
+                    message: 'خطا در برقراری ارتباط با سرور.'
+                });
+            }
+            else if (!food) {
+                res.status(404).json({
+                    error: true,
+                    message: 'غذا مورد نظر یافت نشد.'
+                });
+            }
+            else {
+                FoodCategory.find({}, (err, categories) => {
+                    if (err) {
+                        res.status(500).json({
+                            error: true,
+                            message: 'خطا در برقراری ارتباط با سرور.'
+                        });
+                    }
+                    else {
+                        // find reference to food category using category id
+                        for (let j = 0; j < categories.length; j++) {
+                            let foodCategoryID = food.category.toString();
+                            let categoryID = categories[j]._id.toString();
+                            if (foodCategoryID == categoryID) {
+                                food.category_name = categories[j].name;
+                            }
+                        }
+                        res.render('layouts/food', {
+                            title: process.env.SITE_TITLE + ' - ' + food.name,
+                            name: process.env.SITE_NAME,
+                            page: 'food',
+                            food: food,
+                            isLoggedIn: req.isLoggedIn
+                        });
+                    }
+                });
+            }
+        });
+    }
 });
 
 // ********** Web Application Admin Routes **********
@@ -918,6 +1063,11 @@ app.get('/admin/food/:id', csrfProtection, adminMiddleware.loginRedirect, (req, 
             });
         }
     });
+});
+
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
 });
 
 app.listen(PORT, () => {

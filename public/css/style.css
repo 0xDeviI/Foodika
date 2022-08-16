@@ -639,5 +639,10 @@ button {
   border: .1rem solid #fff;
 }
 
-.dashboard-container {
+.available {
+  color: #00ff00;
+}
+
+.unavailable {
+  color: #ff0000;
 }

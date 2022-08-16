@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> {{title}} </title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="/images/utensils-solid.svg">
+    {{> userrequired}}
+</head>
+
+<body>
+
+    {{> header}}
+
+    <section class="popular" id="popular">
+
+        <h1 class="heading">منوی <span>{{name}}</span></h1>
+
+        <div class="box-container">
+            {{> foodloop}}
+        </div>
+
+    </section>
+    {{> mainfooter}}
+</body>
+
+</html>
