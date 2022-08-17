@@ -614,7 +614,240 @@ app.put('/api/v1/admin/food/:id', globalMiddleware.jwtAuth, upload.single('image
         }
     }
 });
-        
+app.post('/api/v1/admin/user/add', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var name = req.body.name;
+    var username = req.body.username;
+    var password = req.body.password;
+    var role = req.body.role;
+
+    if (!name || !username || !password || !role) {
+        res.status(400).json({
+            error: true,
+            message: 'نام، نام کاربری و رمز عبور را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidName(name)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidUsername(username)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام کاربری را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidPassword(password)) {
+            res.status(400).json({
+                error: true,
+                message: 'رمز عبور را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidRole(role)) {
+            res.status(400).json({
+                error: true,
+                message: 'نقش را به درستی وارد کنید'
+            });
+        }
+        else {
+            User.findOne({ username: username }, function(err, user) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (user) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'نام کاربری تکراری است'
+                    });
+                }
+                else {
+                    var newUser = new User();
+                    newUser.name = name;
+                    newUser.username = username;
+                    newUser.password = bcrypt.hashSync(password, 10);
+                    newUser.role = role;
+                    newUser.save(function(err) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else {
+                            res.status(200).json({
+                                error: false,
+                                message: 'کاربر با موفقیت اضافه شد'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+});
+app.delete('/api/v1/admin/user/:id', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'آیدی کاربر را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'آیدی کاربر را به درستی وارد کنید'
+            });
+        }
+        else {
+            User.findById(id, function(err, user) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!user) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'کاربر مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    user.remove(function(err) {
+                        if (err) {
+                            res.status(500).json({
+                                error: true,
+                                message: 'خطا در برقراری ارتباط با سرور'
+                            });
+                        }
+                        else {
+                            res.status(200).json({
+                                error: false,
+                                message: 'کاربر با موفقیت حذف شد'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+});
+app.put('/api/v1/admin/user/:id', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    var name = req.body.name;
+    var username = req.body.username;
+    var password = req.body.password;
+    var role = req.body.role;
+
+    if (!id || !name || !username || !password || !role) {
+        res.status(400).json({
+            error: true,
+            message: 'آیدی کاربر و نام، نام کاربری و رمز عبور و نقش را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'آیدی کاربر را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidName(name)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidUsername(username)) {
+            res.status(400).json({
+                error: true,
+                message: 'نام کاربری را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidPassword(password)) {
+            res.status(400).json({
+                error: true,
+                message: 'رمز عبور را به درستی وارد کنید'
+            });
+        }
+        else if (!validator.isValidRole(role)) {
+            res.status(400).json({
+                error: true,
+                message: 'نقش را به درستی وارد کنید'
+            });
+        }
+        else {
+            User.findById(id, function(err, user) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!user) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'کاربر مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    if (req.session.user.role !== 'admin') {
+                        res.status(400).json({
+                            error: true,
+                            message: 'شما دسترسی لازم برای انجام این عملیات را ندارید'
+                        });
+                    }
+                    else {
+                        // check requested username is available or not
+                        User.findOne({
+                            username: username
+                        }, function(err, user) {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور'
+                                });
+                            }
+                            else if (user && user.username !== username) {
+                                res.status(400).json({
+                                    error: true,
+                                    message: 'نام کاربری قبلا استفاده شده است'
+                                });
+                            }
+                            else {
+                                user.name = name;
+                                user.username = username;
+                                user.password = password;
+                                user.role = role;
+                                user.save(function(err) {
+                                    if (err) {
+                                        res.status(500).json({
+                                            error: true,
+                                            message: 'خطا در برقراری ارتباط با سرور'
+                                        });
+                                    }
+                                    else {
+                                        res.status(200).json({
+                                            error: false,
+                                            message: 'کاربر با موفقیت ویرایش شد'
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
 
 
 // ********** Web API Routes **********
@@ -1565,6 +1798,72 @@ app.get('/admin/food/:id', csrfProtection, adminMiddleware.loginRedirect, (req, 
         }
     })
 });
+
+app.get('/admin/adduser', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    res.render('layouts/admin/adduser', {
+        title: process.env.SITE_TITLE + ' - ثبت کاربر',
+        name: process.env.SITE_NAME,
+        page: 'admin_adduser',
+        user: req.session.user,
+        csrfToken: req.csrfToken()
+    });
+});
+
+app.get('/admin/users', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    User.find({}, (err, users) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            res.render('layouts/admin/users', {
+                title: process.env.SITE_TITLE + ' - کاربران',
+                name: process.env.SITE_NAME,
+                page: 'admin_users',
+                user: req.session.user,
+                users: users,
+                csrfToken: req.csrfToken()
+            });
+        }
+    }).sort({
+        createdAt: -1
+    });
+});
+
+app.get('/admin/user/:id', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    let id = req.params.id;
+    if (!id) {
+        res.redirect('/admin/users');
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.redirect('/admin/users');
+        }
+        else {
+            User.findById(id, (err, user) => {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    });
+                }
+                else {
+                    res.render('layouts/admin/edituser', {
+                        title: process.env.SITE_TITLE + ' - ویرایش کاربر',
+                        name: process.env.SITE_NAME,
+                        page: 'admin_edituser',
+                        user: req.session.user,
+                        userInfo: user,
+                        csrfToken: req.csrfToken()
+                    });
+                }
+            });
+        }
+    }
+});
+
 
 app.get('/logout', (req, res) => {
     req.session.destroy();

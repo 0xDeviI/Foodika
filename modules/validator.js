@@ -19,6 +19,9 @@ const validator = {
     },
     isValidFoodDescription: (description) => {
         return /^[\u0600-\u06FF\s\d\.,،:'"*()-_+=]+$/.test(description);
+    },
+    isValidRole: (role) => {
+        return role === 'user' || role === 'admin' || role === 'kitchen' || role === 'reception';
     }
 };
 

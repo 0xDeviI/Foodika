@@ -83,7 +83,7 @@
                 <div class="container-fluid">
                     <div class="row mb-2">
                         <div class="col-sm-6">
-                            <h1 class="m-0 text-dark">ثبت کاربر</h1>
+                            <h1 class="m-0 text-dark">ویرایش کاربر</h1>
                         </div>
                     </div>
                 </div>
@@ -105,11 +105,11 @@
                                     <input type="hidden" name="_csrf" value="{{csrfToken}}">
                                     <div class="form-group">
                                         <label for="name">نام و نام خانوادگی</label>
-                                        <input type="text" class="form-control" id="name" placeholder="نام و نام خانوادگی را وارد کنید">
+                                        <input type="text" value="{{userInfo.name}}" class="form-control" id="name" placeholder="نام و نام خانوادگی را وارد کنید">
                                     </div>
                                     <div class="form-group">
                                         <label for="username">نام کاربری</label>
-                                        <input type="text" class="form-control" id="username" placeholder="نام کاربری را وارد کنید">
+                                        <input type="text" value="{{userInfo.username}}" class="form-control" id="username" placeholder="نام کاربری را وارد کنید">
                                     </div>
                                     <div class="form-group">
                                         <label for="password">کلمه عبور</label>
@@ -124,14 +124,14 @@
                                             <option value="user">کاربر</option>
                                         </select>
                                         <script>
-                                            document.getElementById('role').value = 'user';
+                                            document.getElementById('role').value = "{{userInfo.role}}";
                                         </script>
                                     </div>
                                 </div>
                                 <!-- /.card-body -->
 
                                 <div class="card-footer">
-                                    <button id="submit" type="button" class="btn btn-primary">ثبت</button>
+                                    <button data-id="{{userInfo._id}}" id="submit" type="button" class="btn btn-primary">ثبت</button>
                                 </div>
                             </div>
                         </div>

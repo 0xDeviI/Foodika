@@ -71,6 +71,9 @@ const validator = {
     },
     isValidPrice: (price) => {
         return /^[0-9]{1,10}$/.test(price);
+    },
+    isValidRole: (role) => {
+        return role === 'user' || role === 'admin' || role === 'kitchen' || role === 'reception';
     }
 };
 
@@ -424,6 +427,93 @@ const adminModule = {
                 contentType: false,
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestAddUser: (name, username, password, role, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/admin/user/add',
+                type: 'POST',
+                data: JSON.stringify({
+                    name: name.value,
+                    username: username.value,
+                    password: password.value,
+                    role: role.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestDeleteUser: (id, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/user/${id}`,
+                type: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestEditUser: (id, name, username, password, role, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/user/${id}`,
+                type: 'PUT',
+                data: JSON.stringify({
+                    name: name.value,
+                    username: username.value,
+                    password: password.value,
+                    role: role.value
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
@@ -801,5 +891,98 @@ if (page !== null) {
                 }
             }
         }
+    }
+    else if (page_t === 'admin_adduser') {
+        var _name = document.getElementById('name');
+        var username = document.getElementById('username');
+        var password = document.getElementById('password');
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+        var role = document.getElementById('role');
+        var submit = document.getElementById('submit');
+
+        submit.addEventListener('click', function (e) {
+            if (!validator.isValidName(_name.value)) {
+                notify('خطا', 'نام وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidUsername(username.value)) {
+                notify('خطا', 'نام کاربری وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidPassword(password.value)) {
+                notify('خطا', 'رمز عبور وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidRole(role.value)) {
+                notify('خطا', 'نقش کاربری وارد شده معتبر نیست.', 2000);
+            }
+            else {
+                adminModule.requestAddUser(_name, username, password, role, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'کاربر با موفقیت اضافه شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        });
+    }
+    else if (page_t === 'admin_users') {
+        function deleteUser(obj) {
+            var confirm = window.confirm('آیا از حذف این کاربر اطمینان دارید؟');
+            if (confirm) {
+                var id = obj.getAttribute('data-id');
+                var _csrf = document.getElementsByName('_csrf')[0].value;
+                adminModule.requestDeleteUser(id, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'کاربر حذف شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        }
+    }
+    else if (page_t === 'admin_edituser') {
+        var _name = document.getElementById('name');
+        var username = document.getElementById('username');
+        var password = document.getElementById('password');
+        var _csrf = document.getElementsByName('_csrf')[0].value;
+        var role = document.getElementById('role');
+        var submit = document.getElementById('submit');
+        var id = submit.getAttribute('data-id');
+
+        submit.addEventListener('click', function (e) {
+            if (!validator.isValidName(_name.value)) {
+                notify('خطا', 'نام وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidUsername(username.value)) {
+                notify('خطا', 'نام کاربری وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidPassword(password.value)) {
+                notify('خطا', 'رمز عبور وارد شده معتبر نیست.', 2000);
+            }
+            else if (!validator.isValidRole(role.value)) {
+                notify('خطا', 'نقش کاربری وارد شده معتبر نیست.', 2000);
+            }
+            else {
+                adminModule.requestEditUser(id, _name, username, password, role, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'ویرایش اطلاعات کاربر با موفقیت انجام شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        });
     }
 }
