@@ -824,7 +824,7 @@ app.put('/api/v1/admin/user/:id', globalMiddleware.jwtAuth, csrfProtection, admi
                             else {
                                 user.name = name;
                                 user.username = username;
-                                user.password = password;
+                                user.password = bcrypt.hashSync(password, 10);
                                 user.role = role;
                                 user.save(function(err) {
                                     if (err) {
@@ -839,6 +839,122 @@ app.put('/api/v1/admin/user/:id', globalMiddleware.jwtAuth, csrfProtection, admi
                                             message: 'کاربر با موفقیت ویرایش شد'
                                         });
                                     }
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
+app.put('/api/v1/admin/order/:id/onway', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'آیدی سفارش را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'آیدی سفارش را به درستی وارد کنید'
+            });
+        }
+        else {
+            Order.findById(id, function(err, order) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!order) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'سفارش مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    if (req.session.user.role !== 'admin') {
+                        res.status(400).json({
+                            error: true,
+                            message: 'شما دسترسی لازم برای انجام این عملیات را ندارید'
+                        });
+                    }
+                    else {
+                        order.status = 'on the way';
+                        order.save(function(err) {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور'
+                                });
+                            }
+                            else {
+                                res.status(200).json({
+                                    error: false,
+                                    message: 'سفارش با موفقیت به حالت در حال تحویل ارسال شد'
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
+app.put('/api/v1/admin/order/:id/delivered', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+    var id = req.params.id;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'آیدی سفارش را وارد کنید'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'آیدی سفارش را به درستی وارد کنید'
+            });
+        }
+        else {
+            Order.findById(id, function(err, order) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور'
+                    });
+                }
+                else if (!order) {
+                    res.status(400).json({
+                        error: true,
+                        message: 'سفارش مورد نظر یافت نشد'
+                    });
+                }
+                else {
+                    if (req.session.user.role !== 'admin') {
+                        res.status(400).json({
+                            error: true,
+                            message: 'شما دسترسی لازم برای انجام این عملیات را ندارید'
+                        });
+                    }
+                    else {
+                        order.status = 'done';
+                        order.save(function(err) {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور'
+                                });
+                            }
+                            else {
+                                res.status(200).json({
+                                    error: false,
+                                    message: 'سفارش با موفقیت به حالت در حال تحویل ارسال شد'
                                 });
                             }
                         });
@@ -1186,6 +1302,8 @@ app.put('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req,
     var id = req.params.id;
     var method = req.body.method;
     var user = req.user.user;
+    var address = req.body.address;
+    var phone = req.body.phone;
     if (!id) {
         res.status(400).json({
             error: true,
@@ -1228,6 +1346,8 @@ app.put('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req,
                         order.paymentMethod = method;
                         order.paymentStatus = 'done';
                         order.amount = amount;
+                        order.address = address;
+                        order.phone = phone;
                         order.save( (err, order) => {
                             if (err) {
                                 res.status(500).json({
@@ -1252,6 +1372,8 @@ app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req,
     // send http request to payment gateway
     var user = req.user.user;
     var id = req.body.id;
+    var address = req.body.address;
+    var phone = req.body.phone;
 
     if (!id) {
         res.status(400).json({
@@ -1292,24 +1414,9 @@ app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req,
                         for (var i = 0; i < order.foods.length; i++) {
                             amount += order.foods[i].food.price * order.foods[i].quantity;
                         }
-                        // create request using request module
-                         // send to nextpay
-                        var options = {
-                            method: 'POST',
-                            url: 'https://nextpay.org/nx/gateway/token',
-                            headers: {
-                                'content-type': 'application/json'
-                            },
-                            body: {
-                                api_key: process.env.NEXTPAY_API_KEY,
-                                order_id: order.paymentId,
-                                amount: amount,
-                                currency: 'IRT',
-                                callback_uri: process.env.DOMAIN + '/payment/callback'
-                            },
-                            json: true
-                        };
-                        request(options, (err, response, body) => {
+                        order.address = address;
+                        order.phone = phone;
+                        order.save( (err, order) => {
                             if (err) {
                                 res.status(500).json({
                                     error: true,
@@ -1317,22 +1424,49 @@ app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req,
                                 });
                             }
                             else {
-                                // parse response which is in json format
-                                var gatewayResponse = body;
-                                if (gatewayResponse.code === -1) {
-                                    let token = gatewayResponse.trans_id;
-                                    res.status(201).json({
-                                        error: false,
-                                        message: 'توکن پرداخت صادر شد.',
-                                        payment: `https://nextpay.org/nx/gateway/payment/${token}`
-                                    });
-                                }
-                                else {
-                                    res.status(500).json({
-                                        error: true,
-                                        message: 'خطا در برقراری ارتباط با سرور.'
-                                    });
-                                }
+                                // create request using request module
+                                // send to nextpay
+                                var options = {
+                                    method: 'POST',
+                                    url: 'https://nextpay.org/nx/gateway/token',
+                                    headers: {
+                                        'content-type': 'application/json'
+                                    },
+                                    body: {
+                                        api_key: process.env.NEXTPAY_API_KEY,
+                                        order_id: order.paymentId,
+                                        amount: amount,
+                                        currency: 'IRT',
+                                        callback_uri: process.env.DOMAIN + '/payment/callback'
+                                    },
+                                    json: true
+                                };
+                                request(options, (err, response, body) => {
+                                    if (err) {
+                                        res.status(500).json({
+                                            error: true,
+                                            message: 'خطا در برقراری ارتباط با سرور.'
+                                        });
+                                    }
+                                    else {
+                                        // parse response which is in json format
+                                        var gatewayResponse = body;
+                                        if (gatewayResponse.code === -1) {
+                                            let token = gatewayResponse.trans_id;
+                                            res.status(201).json({
+                                                error: false,
+                                                message: 'توکن پرداخت صادر شد.',
+                                                payment: `https://nextpay.org/nx/gateway/payment/${token}`
+                                            });
+                                        }
+                                        else {
+                                            res.status(500).json({
+                                                error: true,
+                                                message: 'خطا در برقراری ارتباط با سرور.'
+                                            });
+                                        }
+                                    }
+                                });
                             }
                         });
                     }
@@ -1559,6 +1693,7 @@ app.get('/payment/callback', userMiddleware.userData, (req, res) => {
                     var order_id = gatewayResponse.order_id;
                     var amount = gatewayResponse.amount;
                     var Shaparak_Ref_Id = gatewayResponse.Shaparak_Ref_Id;
+                    var custom = gatewayResponse.custom;
                     Order.findOne({ paymentId: order_id, paymentStatus: 'pending' }).exec((err, order) => {
                         if (err) {
                             res.render('layouts/payment', {
@@ -1862,6 +1997,59 @@ app.get('/admin/user/:id', csrfProtection, adminMiddleware.loginRedirect, (req, 
             });
         }
     }
+});
+
+app.get('/admin/payments', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    Order.find({ paymentStatus: 'done' }).populate('user').sort({
+        createdAt: -1
+    }).exec((err, orders) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            res.render('layouts/admin/payments', {
+                title: process.env.SITE_TITLE + ' - پرداخت ها',
+                name: process.env.SITE_NAME,
+                page: 'admin_payments',
+                user: req.session.user,
+                orders: orders,
+                csrfToken: req.csrfToken()
+            });
+        }
+    });
+});
+
+app.get('/admin/kitchen', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
+    Order.find({ paymentStatus: 'done', status: {$ne: 'done'} }).populate('user').populate({
+        path: 'foods.food',
+        model: 'Food',
+        populate: {
+            path: 'category',
+            model: 'FoodCategory'
+        }
+    }).sort({
+        createdAt: -1
+    }).exec((err, orders) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            res.render('layouts/admin/kitchen', {
+                title: process.env.SITE_TITLE + ' - کارگاه',
+                name: process.env.SITE_NAME,
+                page: 'admin_kitchen',
+                user: req.session.user,
+                orders: orders,
+                csrfToken: req.csrfToken()
+            });
+        }
+    });
 });
 
 

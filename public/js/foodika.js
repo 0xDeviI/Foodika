@@ -187,14 +187,16 @@ const userModule = {
             });
         });
     },
-    requestCompleteOrder: (id, method, _csrf) => {
+    requestCompleteOrder: (id, method, address, phone, _csrf) => {
         var token = security.getLocalStorage('token');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: '/api/v1/user/cart/' + id,
                 type: 'PUT',
                 data: JSON.stringify({
-                    method: method
+                    method: method,
+                    address: address.value,
+                    phone: phone.value
                 }),
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
@@ -212,14 +214,16 @@ const userModule = {
             });
         });
     },
-    requestOnlinePaymentToken: (id, _csrf) => {
+    requestOnlinePaymentToken: (id, address, phone, _csrf) => {
         var token = security.getLocalStorage('token');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: '/api/v1/user/payment',
                 type: 'POST',
                 data: JSON.stringify({
-                    id: id
+                    id: id,
+                    address: address.value,
+                    phone: phone.value
                 }),
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
@@ -511,6 +515,56 @@ const adminModule = {
                     password: password.value,
                     role: role.value
                 }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestOrderOnWay: (id, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/order/${id}/onway`,
+                type: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestOrderDelivered: (id, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `/api/v1/admin/order/${id}/delivered`,
+                type: 'PUT',
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
                     'Content-Type': 'application/json',
@@ -855,6 +909,8 @@ if (page !== null) {
             var onlinePay = document.getElementById('onlinePay');
             var payOnDelivery = document.getElementById('payOnDeliver');
             var payOnStore = document.getElementById('payOnStore');
+            var address = document.getElementById('address');
+            var phone = document.getElementById('phone');
             if (!onlinePay.checked && !payOnDelivery.checked && !payOnStore.checked) {
                 notify('خطا', 'حداقل یکی از گزینه های پرداخت را انتخاب کنید.', 2000);
             }
@@ -865,7 +921,7 @@ if (page !== null) {
                 if (confirm) {
                     if (method == 'online') { 
                         var _csrf = document.getElementsByName('_csrf')[0].value;
-                        userModule.requestOnlinePaymentToken(id, _csrf).then(
+                        userModule.requestOnlinePaymentToken(id, address, phone, _csrf).then(
                             (data) => {
                                 notify('موفق', 'به صفحه پرداخت بانک منتقل می شوید.', 1500);
                                 setTimeout(() => {
@@ -879,7 +935,7 @@ if (page !== null) {
                     }
                     else {
                         var _csrf = document.getElementsByName('_csrf')[0].value;
-                        userModule.requestCompleteOrder(id, method, _csrf).then(
+                        userModule.requestCompleteOrder(id, method, address, phone, _csrf).then(
                             (data) => {
                                 notify('موفق', 'سفارش تکمیل شد.', 500);
                                 setTimeout(() => {
@@ -984,5 +1040,43 @@ if (page !== null) {
                 );
             }
         });
+    }
+    else if (page_t === 'admin_kitchen') {
+        function orderOnWay(obj) {
+            var id = obj.getAttribute('data-id');
+            var _csrf = document.getElementsByName('_csrf')[0].value;
+            adminModule.requestOrderOnWay(id, _csrf).then(
+                (data) => {
+                    notify('موفق', 'سفارش درحال ارسال به مشتری است.', 500);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                },
+                (message) => {
+                    notify('خطا', message, 2000);
+                }
+            );
+        }
+
+        function orderDelivered(obj) {
+            var id = obj.getAttribute('data-id');
+            var _csrf = document.getElementsByName('_csrf')[0].value;
+            adminModule.requestOrderDelivered(id, _csrf).then(
+                (data) => {
+                    notify('موفق', 'سفارش به دست مشتری رسید.', 500);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                },
+                (message) => {
+                    notify('خطا', message, 2000);
+                }
+            );
+        }
+
+        // refresh after each 1 minute
+        setInterval(() => {
+            window.location.reload();
+        }, 60000);
     }
 }

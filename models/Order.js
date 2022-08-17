@@ -47,6 +47,17 @@ const OrderSchema = new Schema({
     amount: {
         type: Number,
         required: false
+    },
+    address: {
+        type: String,
+        required: true,
+        default: '-'
+    },
+    phone: {
+        type: String,
+        required: true,
+        length: [11, 11],
+        default: '-'
     }
 });
 
