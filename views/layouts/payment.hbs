@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> {{title}} </title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="images/utensils-solid.svg">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="/images/utensils-solid.svg">
     {{> userrequired}}
 </head>
 
 <body>
+    <div id="page" hidden>{{ page }}</div>
     {{> header}}
     <section class="popular" id="popular">
 
@@ -18,12 +19,9 @@
 
         <div class="box-container">
             <div class="box">
-                <h3>داشبورد</h3>
-                <a class="dashboard-menu" href="/dashboard/orders">سبد خرید</a>
-                <br>
-                <a class="dashboard-menu" href="/dashboard/payments">سفارشات</a>
-                <br>
-                <a href="/logout" class="btn">خروج از حساب</a>
+                <h3 class="{{#if result.error}} error {{else}} success {{/if}}">
+                    {{result.message}}
+                </h3>
             </div>
         </div>
 

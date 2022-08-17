@@ -14,6 +14,9 @@ const validator = {
     isValidPrice: (price) => {
         return /^[0-9]{1,10}$/.test(price);
     },
+    isValidNumber: (price) => {
+        return /^[0-9]{1,10}$/.test(price);
+    },
     isValidFoodDescription: (description) => {
         return /^[\u0600-\u06FF\s\d\.,،:'"*()-_+=]+$/.test(description);
     }

@@ -20,6 +20,18 @@ function loginRedirect(req, res, next) {
         }
         res.redirect('/signin');
     }
+    else if (_url === 'orders') {
+        if (req.session.user && req.session.user.role === 'user') {
+            return next();
+        }
+        res.redirect('/signin');
+    }
+    else if (_url === 'payments') {
+        if (req.session.user && req.session.user.role === 'user') {
+            return next();
+        }
+        res.redirect('/signin');
+    }
     else {
         res.status(404).send('404 Not Found');
     }

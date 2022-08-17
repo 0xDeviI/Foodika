@@ -16,23 +16,32 @@
     <section class="popular" id="popular">
 
         <h1 class="heading">منوی <span>{{name}}</span></h1>
-
+        {{#if (eq orders.length 0)}}
         <div class="box-container">
-            <input type="hidden" name="_csrf" value="{{csrfToken}}">
+            <div class="box">
+                <h3>سفارشی برای شما یافت نشد</h3>
+            </div>
+        </div>
+        {{else}}
+        {{#each orders}}
+        <br>
+        <h1>سفارش {{inc @index}} - مبلغ کل: {{amount}} تومان - {{pstatus}}</h1>
+        <br>
+        <div class="box-container">
+            {{#each foods}}
             <div class="box">
                 <img src="/{{food.image}}" alt="">
                 <h3>{{food.name}} - {{#if food.isAvailable}} <span class="available">موجود</span> {{else}} <span
                         class="unavailable">ناموجود</span> {{/if}}</h3>
                 <p>در دسته <a href="/category/{{food.category.name}}">{{food.category.name}}</a></p>
+                <p>تعداد: {{quantity}}</p>
+                <p class="per-price">مجموع: {{mul quantity food.price}} تومان</p>
                 <p class="price">{{food.price}} تومان</p>
-                <p class="description">{{food.description}}</p>
-                <div class="quantity">
-                    <h3>تعداد</h3>
-                    <input type="number" id="quantity" class="quantity" name="quantity" value="1" min="1">
-                </div>
-                <button data-id="{{food.id}}" data-available="{{food.isAvailable}}" id="addToCard" class="btn">خرید</button>
             </div>
+            {{/each}}
         </div>
+        {{/each}}
+        {{/if}}
 
     </section>
     {{> mainfooter }}

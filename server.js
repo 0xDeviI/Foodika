@@ -5,14 +5,16 @@ const dotenv = require('dotenv');
 const csrf = require('csurf');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const uuid4 = require('./modules/uuid'); // unused
+const uuid4 = require('./modules/uuid');
 const session = require('express-session');
 const validator = require('./modules/validator');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const multer = require('multer');
-const PORT = process.env.PORT || 3000;
+const request = require('request');
+const {getPaymentID} = require('./modules/identifier');
 dotenv.config();
+const PORT = process.env.PORT || process.env.OTHER_PORT;
 var cookieParser = require('cookie-parser');
 var csrfProtection = csrf({ cookie: true, sessionKey: process.env.CSRF_SESSION_KEY });
 var parseForm = express.urlencoded({ extended: false }); // unused yet
@@ -31,7 +33,8 @@ hbs.registerHelper({
     },
     or() {
         return Array.prototype.slice.call(arguments, 0, -1).some(Boolean);
-    }
+    },
+    mul: (v1, v2) => v1 * v2
 });
 hbs.registerHelper('inc', function (index) {
     index++;
@@ -94,6 +97,7 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(er
 const User = require('./models/User');
 const FoodCategory = require('./models/FoodCategory');
 const Food = require('./models/Food');
+const Order = require('./models/Order');
 // initialize admin account if not exists
 User.findOne({ role: 'admin' }, function(err, user) {
     if (err) {
@@ -117,6 +121,7 @@ User.findOne({ role: 'admin' }, function(err, user) {
 // middlewares
 const userMiddleware = require('./middleware/user/user_middleware');
 const adminMiddleware = require('./middleware/admin/admin_middleware');
+const globalMiddleware = require('./middleware/global_middleware');
 
 // ********** Web API Admin Routes **********
 app.post('/api/v1/admin/login', csrfProtection, function(req, res) {
@@ -172,7 +177,7 @@ app.post('/api/v1/admin/login', csrfProtection, function(req, res) {
         }
     }
 });
-app.post('/api/v1/admin/category/add', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.post('/api/v1/admin/category/add', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var name = req.body.name;
     if (!name) {
         res.status(400).json({
@@ -224,7 +229,7 @@ app.post('/api/v1/admin/category/add', csrfProtection, adminMiddleware.adminAllo
         }
     }
 });
-app.delete('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.delete('/api/v1/admin/category/:id', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var id = req.params.id;
     if (!id) {
         res.status(400).json({
@@ -273,7 +278,7 @@ app.delete('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAl
         }
     }
 });
-app.put('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.put('/api/v1/admin/category/:id', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var id = req.params.id;
     var name = req.body.name;
     if (!id || !name) {
@@ -341,7 +346,7 @@ app.put('/api/v1/admin/category/:id', csrfProtection, adminMiddleware.adminAllow
     }
 
 });
-app.post('/api/v1/admin/food/add', upload.single("image"), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.post('/api/v1/admin/food/add', globalMiddleware.jwtAuth, upload.single("image"), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var name = req.body.name;
     var description = req.body.description;
     var category = req.body.category;
@@ -445,7 +450,7 @@ app.post('/api/v1/admin/food/add', upload.single("image"), csrfProtection, admin
         }
     }
 });
-app.delete('/api/v1/admin/food/:id', csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.delete('/api/v1/admin/food/:id', globalMiddleware.jwtAuth, csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var id = req.params.id;
     if (!validator.isValidObjectId(id)) {
         res.status(400).json({
@@ -490,7 +495,7 @@ app.delete('/api/v1/admin/food/:id', csrfProtection, adminMiddleware.adminAllowe
         });
     }
 });
-app.put('/api/v1/admin/food/:id', upload.single('image'), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
+app.put('/api/v1/admin/food/:id', globalMiddleware.jwtAuth, upload.single('image'), csrfProtection, adminMiddleware.adminAllowed, function(req, res) {
     var id = req.params.id;
     var name = req.body.name;
     var description = req.body.description;
@@ -498,6 +503,7 @@ app.put('/api/v1/admin/food/:id', upload.single('image'), csrfProtection, adminM
     var image = req.file ? req.file.path : null;
     var price = req.body.price;
     var available = req.body.available;
+    var deletePhoto = req.body.deletePhoto;
     if (!name || !category || !price || !available) {
         res.status(400).json({
             error: true,
@@ -570,10 +576,15 @@ app.put('/api/v1/admin/food/:id', upload.single('image'), csrfProtection, adminM
                                 image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
                             }
                             else {
-                                image = process.env.FOODS_DEFAULT_IMAGE;
+                                if (deletePhoto === 'true') {
+                                    image = process.env.FOODS_DEFAULT_IMAGE;
+                                }
+                                else {
+                                    image = food.image;
+                                }
                             }
                             // remove old image
-                            if (food.image && food.image !== process.env.FOODS_DEFAULT_IMAGE) {
+                            if (food.image && food.image !== process.env.FOODS_DEFAULT_IMAGE && deletePhoto === 'true') {
                                 fs.unlink(`public/${food.image}`, function(err) {});
                             }
                             food.name = name;
@@ -726,18 +737,27 @@ app.post('/api/v1/user/login', csrfProtection, (req, res) => {
         }
     }
 });
+app.post('/api/v1/user/cart', globalMiddleware.jwtAuth, csrfProtection, (req, res) => {
+    var id = req.body.id;
+    var quantity = req.body.quantity;
+    var user = req.user.user;
 
-// ********** Web Application Routes **********
-app.get('/', userMiddleware.userData, (req, res) => {
-    Food.find({}, function(err, foods) {
-        if (err) {
-            res.status(500).json({
+    if (!id || !quantity) {
+        res.status(400).json({
+            error: true,
+            message: 'وارد کردن همه فیلدها الزامی است.'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id) || !validator.isValidNumber(quantity)) {
+            res.status(400).json({
                 error: true,
-                message: 'خطا در برقراری ارتباط با سرور.'
+                message: 'مقادیر ورودی نامعتبر است.'
             });
         }
         else {
-            FoodCategory.find({}, function(err, foodCategories) {
+            quantity = Number(quantity);
+            Food.findById(id, function(err, food) {
                 if (err) {
                     res.status(500).json({
                         error: true,
@@ -745,22 +765,365 @@ app.get('/', userMiddleware.userData, (req, res) => {
                     });
                 }
                 else {
-                    for (let i = 0; i < foods.length; i++) {
-                        for (let j = 0; j < foodCategories.length; j++) {
-                            let foodCategoryID = foods[i].category.toString();
-                            let categoryID = foodCategories[j]._id.toString();
-                            if (foodCategoryID == categoryID) {
-                                foods[i].category_name = foodCategories[j].name;
-                            }
-                        }
+                    if (!food) {
+                        res.status(400).json({
+                            error: true,
+                            message: 'غذا وجود ندارد.'
+                        });
                     }
-                    res.render('layouts/index', {
-                        title: process.env.SITE_TITLE,
-                        name: process.env.SITE_NAME,
-                        foods: foods,
-                        isLoggedIn: req.isLoggedIn
+                    else {
+                        Order.findOne({ user: user._id, paymentStatus: 'pending' }, function(err, order) {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                });
+                            }
+                            else {
+                                if (!order) {
+                                    var newOrder = new Order({
+                                        user: user._id,
+                                        foods: [{
+                                            food: food._id,
+                                            quantity: quantity
+                                        }],
+                                        paymentId: getPaymentID()
+                                    });
+                                    newOrder.save((err, order) => {
+                                        if (err) {
+                                            res.status(500).json({
+                                                error: true,
+                                                message: 'خطا در برقراری ارتباط با سرور.'
+                                            });
+                                        }
+                                        else {
+                                            res.status(200).json({
+                                                error: false,
+                                                message: 'ثبت سفارش با موفقیت انجام شد.'
+                                            });
+                                        }
+                                    });
+                                }
+                                else {
+                                    var foodExists = false;
+                                    for (var i = 0; i < order.foods.length; i++) {
+                                        if (order.foods[i].food.toString() === food._id.toString()) {
+                                            foodExists = true;
+                                            break;
+                                        }
+                                    }
+                                    if (foodExists) {
+                                        // update
+                                        console.log(order.foods[i]);
+                                        order.foods[i].quantity = quantity;
+                                        order.markModified('foods');
+                                        order.save( { new: true }, (err, order) => {
+                                            if (err) {
+                                                res.status(500).json({
+                                                    error: true,
+                                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                                });
+                                            }
+                                            else {
+                                                console.log(order);
+                                                res.status(200).json({
+                                                    error: false,
+                                                    message: 'ویرایش سفارش با موفقیت انجام شد.'
+                                                });
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        order.foods.push({
+                                            food: food._id,
+                                            quantity: quantity
+                                        });
+                                        order.save((err, order) => {
+                                            if (err) {
+                                                res.status(500).json({
+                                                    error: true,
+                                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                                });
+                                            }
+                                            else {
+                                                res.status(200).json({
+                                                    error: false,
+                                                    message: 'ثبت سفارش با موفقیت انجام شد.'
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
+app.delete('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req, res) => {
+    var id = req.params.id;
+    var user = req.user.user;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'وارد کردن همه فیلدها الزامی است.'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'مقادیر ورودی نامعتبر است.'
+            });
+        }
+        else {
+            Order.findOne({ user: user._id, paymentStatus: 'pending' }, function(err, order) {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
                     });
                 }
+                else {
+                    if (!order) {
+                        res.status(400).json({
+                            error: true,
+                            message: 'سفارشی وجود ندارد.'
+                        });
+                    }
+                    else {
+                        var foodExists = false;
+                        for (var i = 0; i < order.foods.length; i++) {
+                            if (order.foods[i]._id.toString() === id.toString()) {
+                                foodExists = true;
+                                break;
+                            }
+                        }
+                        if (foodExists) {
+                            order.foods.splice(i, 1);
+                            order.save( { new: true }, (err, order) => {
+                                if (err) {
+                                    res.status(500).json({
+                                        error: true,
+                                        message: 'خطا در برقراری ارتباط با سرور.'
+                                    });
+                                }
+                                else {
+                                    if (order.foods.length === 0) {
+                                        // remove it
+                                        Order.deleteOne({ _id: order._id }, (err) => {
+                                            if (err) {
+                                                res.status(500).json({
+                                                    error: true,
+                                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                                });
+                                            }
+                                            else {
+                                                res.status(200).json({
+                                                    error: false,
+                                                    message: 'حذف سفارش با موفقیت انجام شد.'
+                                                });
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        res.status(200).json({
+                                            error: false,
+                                            message: 'حذف سفارش با موفقیت انجام شد.'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                        else {
+                            res.status(400).json({
+                                error: true,
+                                message: 'سفارشی وجود ندارد.'
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+app.put('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req, res) => {
+    var id = req.params.id;
+    var method = req.body.method;
+    var user = req.user.user;
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'وارد کردن همه فیلدها الزامی است.'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'مقادیر ورودی نامعتبر است.'
+            });
+        }
+        else {
+            if (method != 'pay on delivery' && method != 'pay in store' && method != 'online') {
+                res.status(400).json({
+                    error: true,
+                    message: 'ورودی نامعتبر است.'
+                });
+            }
+            else {
+                Order.findOne({ user: user._id, _id: id }).populate({
+                    path: 'foods.food',
+                    populate: {
+                        path: 'category'
+                    }
+                }).exec((err, order) => {
+                    if (err) {
+                        res.status(500).json({
+                            error: true,
+                            message: 'خطا در برقراری ارتباط با سرور.'
+                        });
+                    }
+                    else {
+                        // calculate total amount
+                        var amount = 0;
+                        for (var i = 0; i < order.foods.length; i++) {
+                            amount += order.foods[i].food.price * order.foods[i].quantity;
+                        }
+                        order.paymentMethod = method;
+                        order.paymentStatus = 'done';
+                        order.amount = amount;
+                        order.save( (err, order) => {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                });
+                            }
+                            else {
+                                res.status(200).json({
+                                    error: false,
+                                    message: 'ویرایش سفارش با موفقیت انجام شد.'
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    }
+});
+app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req, res) => {
+    // send http request to payment gateway
+    var user = req.user.user;
+    var id = req.body.id;
+
+    if (!id) {
+        res.status(400).json({
+            error: true,
+            message: 'وارد کردن همه فیلدها الزامی است.'
+        });
+    }
+    else {
+        if (!validator.isValidObjectId(id)) {
+            res.status(400).json({
+                error: true,
+                message: 'شناسه نامعتبر است.'
+            });
+        }
+        else {
+            Order.findOne({ user: user._id, _id: id, paymentStatus: 'pending' }).populate({
+                path: 'foods.food',
+                populate: {
+                    path: 'category'
+                }
+            }).exec((err, order) => {
+                if (err) {
+                    res.status(500).json({
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    });
+                }
+                else {
+                    if (!order) {
+                        res.status(400).json({
+                            error: true,
+                            message: 'سفارشی وجود ندارد.'
+                        });
+                    }
+                    else {
+                        // calculate amount
+                        var amount = 0;
+                        for (var i = 0; i < order.foods.length; i++) {
+                            amount += order.foods[i].food.price * order.foods[i].quantity;
+                        }
+                        // create request using request module
+                         // send to nextpay
+                        var options = {
+                            method: 'POST',
+                            url: 'https://nextpay.org/nx/gateway/token',
+                            headers: {
+                                'content-type': 'application/json'
+                            },
+                            body: {
+                                api_key: process.env.NEXTPAY_API_KEY,
+                                order_id: order.paymentId,
+                                amount: amount,
+                                currency: 'IRT',
+                                callback_uri: process.env.DOMAIN + '/payment/callback'
+                            },
+                            json: true
+                        };
+                        request(options, (err, response, body) => {
+                            if (err) {
+                                res.status(500).json({
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                });
+                            }
+                            else {
+                                // parse response which is in json format
+                                var gatewayResponse = body;
+                                if (gatewayResponse.code === -1) {
+                                    let token = gatewayResponse.trans_id;
+                                    res.status(201).json({
+                                        error: false,
+                                        message: 'توکن پرداخت صادر شد.',
+                                        payment: `https://nextpay.org/nx/gateway/payment/${token}`
+                                    });
+                                }
+                                else {
+                                    res.status(500).json({
+                                        error: true,
+                                        message: 'خطا در برقراری ارتباط با سرور.'
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+});
+
+// ********** Web Application Routes **********
+app.get('/', userMiddleware.userData, (req, res) => {
+    Food.find({}).populate('category').exec((err, foods) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            res.render('layouts/index', {
+                title: process.env.SITE_TITLE,
+                name: process.env.SITE_NAME,
+                foods: foods,
+                userData: req.userData
             });
         }
     });
@@ -772,7 +1135,7 @@ app.get('/signin', userMiddleware.userData, csrfProtection, userMiddleware.login
         name: process.env.SITE_NAME,
         csrfToken: req.csrfToken(),
         page: 'signin',
-        isLoggedIn: req.isLoggedIn
+        userData: req.userData
     });
 });
 
@@ -782,7 +1145,7 @@ app.get('/signup', userMiddleware.userData, csrfProtection, userMiddleware.login
         name: process.env.SITE_NAME,
         csrfToken: req.csrfToken(),
         page: 'signup',
-        isLoggedIn: req.isLoggedIn
+        userData: req.userData
     });
 });
 
@@ -791,7 +1154,7 @@ app.get('/dashboard', userMiddleware.userData, userMiddleware.loginRedirect, (re
         title: process.env.SITE_TITLE + ' - داشبورد',
         name: process.env.SITE_NAME,
         page: 'dashboard',
-        isLoggedIn: req.isLoggedIn
+        userData: req.userData
     });
 });
 
@@ -830,7 +1193,7 @@ app.get('/category/:name', userMiddleware.userData, (req, res) => {
                             let foodCategoryID = foods[i].category.toString();
                             let categoryID = category._id.toString();
                             if (foodCategoryID == categoryID) {
-                                    foods[i].category_name = category.name;
+                                    foods[i].category.name = category.name;
                             }
                         }
                         res.render('layouts/category', {
@@ -838,7 +1201,7 @@ app.get('/category/:name', userMiddleware.userData, (req, res) => {
                             name: process.env.SITE_NAME,
                             page: 'category',
                             foods: foods,
-                            isLoggedIn: req.isLoggedIn
+                            userData: req.userData
                         });
                     }
                 });
@@ -856,48 +1219,221 @@ app.get('/food/:id', userMiddleware.userData, csrfProtection, (req, res) => {
         });
     }
     else {
-        Food.findById(id, (err, food) => {
+        Food.findById(id).populate('category').exec((err, food) => {
             if (err) {
                 res.status(500).json({
                     error: true,
                     message: 'خطا در برقراری ارتباط با سرور.'
                 });
             }
-            else if (!food) {
-                res.status(404).json({
-                    error: true,
-                    message: 'غذا مورد نظر یافت نشد.'
-                });
-            }
             else {
-                FoodCategory.find({}, (err, categories) => {
-                    if (err) {
-                        res.status(500).json({
-                            error: true,
-                            message: 'خطا در برقراری ارتباط با سرور.'
-                        });
-                    }
-                    else {
-                        // find reference to food category using category id
-                        for (let j = 0; j < categories.length; j++) {
-                            let foodCategoryID = food.category.toString();
-                            let categoryID = categories[j]._id.toString();
-                            if (foodCategoryID == categoryID) {
-                                food.category_name = categories[j].name;
-                            }
-                        }
-                        res.render('layouts/food', {
-                            title: process.env.SITE_TITLE + ' - ' + food.name,
-                            name: process.env.SITE_NAME,
-                            page: 'food',
-                            food: food,
-                            isLoggedIn: req.isLoggedIn
-                        });
-                    }
+                res.render('layouts/food', {
+                    title: process.env.SITE_TITLE + ' - ' + food.name,
+                    name: process.env.SITE_NAME,
+                    page: 'food',
+                    food: food,
+                    userData: req.userData,
+                    csrfToken: req.csrfToken()
                 });
             }
         });
     }
+});
+
+app.get('/dashboard/orders', userMiddleware.userData, userMiddleware.loginRedirect, csrfProtection, (req, res) => {
+    var _id = req.session.user._id;
+    Order.find({user: _id, paymentStatus: 'pending'}).populate({
+        path: 'foods.food',
+        populate: {
+            path: 'category'
+        }
+    }).exec((err, orders) => {
+        if (err) {
+            res.status(500).json({
+                error: true,
+                message: 'خطا در برقراری ارتباط با سرور.'
+            });
+        }
+        else {
+            var total = 0;
+            for (let i = 0; i < orders.length; i++) {
+                for (let j = 0; j < orders[i].foods.length; j++) {
+                    total += orders[i].foods[j].food.price * orders[i].foods[j].quantity;
+                }
+            }
+            res.render('layouts/orders', {
+                title: process.env.SITE_TITLE + ' - سفارشات',
+                name: process.env.SITE_NAME,
+                page: 'orders',
+                orders: orders,
+                userData: req.userData,
+                total: total,
+                csrfToken: req.csrfToken()
+            });
+        }
+    });
+});
+
+app.get('/payment/callback', userMiddleware.userData, (req, res) => {
+    var trans_id = req.query.trans_id;
+    var order_id = req.query.order_id;
+    var amount = req.query.amount;
+
+    if (!trans_id || !order_id || !amount) {
+        res.render('layouts/payment', {
+            title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+            name: process.env.SITE_NAME,
+            page: 'payment',
+            result: {
+                error: true,
+                message: 'درخواست نامعتبر.'
+            },
+            userData: req.userData
+        });
+    }
+    else {
+        // verify payment
+        var options = {
+            method: 'POST',
+            url: 'https://nextpay.org/nx/gateway/verify',
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: {
+                api_key: process.env.NEXTPAY_API_KEY,
+                amount: amount,
+                trans_id: trans_id,
+                currency: 'IRT'
+            },
+            json: true
+        }
+        request(options, (err, response, body) => {
+            if (err) {
+                res.render('layouts/payment', {
+                    title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                    name: process.env.SITE_NAME,
+                    page: 'payment',
+                    result: {
+                        error: true,
+                        message: 'خطا در برقراری ارتباط با سرور.'
+                    },
+                    userData: req.userData
+                });
+            }
+            else {
+                var gatewayResponse = body;
+                if (gatewayResponse.code === 0) {
+                    var order_id = gatewayResponse.order_id;
+                    var amount = gatewayResponse.amount;
+                    var Shaparak_Ref_Id = gatewayResponse.Shaparak_Ref_Id;
+                    Order.findOne({ paymentId: order_id, paymentStatus: 'pending' }).exec((err, order) => {
+                        if (err) {
+                            res.render('layouts/payment', {
+                                title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                                name: process.env.SITE_NAME,
+                                page: 'payment',
+                                result: {
+                                    error: true,
+                                    message: 'خطا در برقراری ارتباط با سرور.'
+                                }
+                            });
+                        }
+                        else {
+                            if (!order) {
+                                res.render('layouts/payment', {
+                                    title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                                    name: process.env.SITE_NAME,
+                                    page: 'payment',
+                                    result: {
+                                        error: true,
+                                        message: 'سفارشی وجود ندارد.'
+                                    },
+                                    userData: req.userData
+                                });
+                            }
+                            else {
+                                order.paymentStatus = 'done';
+                                order.amount = amount;
+                                order.bankRefId = Shaparak_Ref_Id;
+                                order.save( (err, order) => {
+                                    if (err) {
+                                        res.render('layouts/payment', {
+                                            title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                                            name: process.env.SITE_NAME,
+                                            page: 'payment',
+                                            result: {
+                                                error: true,
+                                                message: 'خطا در برقراری ارتباط با سرور.'
+                                            },
+                                            userData: req.userData
+                                        });
+                                    }
+                                    else {
+                                        res.render('layouts/payment', {
+                                            title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                                            name: process.env.SITE_NAME,
+                                            page: 'payment',
+                                            result: {
+                                                error: false,
+                                                message: 'پرداخت با موفقیت انجام شد.'
+                                            },
+                                            userData: req.userData
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+                else {
+                    res.render('layouts/payment', {
+                        title: process.env.SITE_TITLE + ' - بررسی پرداخت',
+                        name: process.env.SITE_NAME,
+                        page: 'payment',
+                        result: {
+                            error: true,
+                            message: 'تراکنش موفقیت آمیز نبود.'
+                        },
+                        userData: req.userData
+                    });
+                }
+            }
+        });
+    }
+});
+
+app.get('/dashboard/payments', userMiddleware.userData, userMiddleware.loginRedirect,(req, res) => {
+    var user = req.session.user;
+    Order.find({ user: user._id, paymentStatus: 'done' }).populate({
+        path: 'foods.food',
+        model: 'Food',
+        populate: {
+            path: 'category'
+        }
+    }).exec((err, orders) => {
+        if (err) {
+            res.render('layouts/payhistory', {
+                title: process.env.SITE_TITLE + ' - سفارشات',
+                name: process.env.SITE_NAME,
+                page: 'payments',
+                orders: [],
+                userData: req.userData
+            });
+        }
+        else {
+            for (let i = 0; i < orders.length; i++) {
+                let orderStatus = orders[i].status;
+                orders[i].pstatus = orderStatus == 'pending' ? 'در حال آماده سازی' : (orderStatus == 'on the way' ? 'در مسیر شما' : 'تحویل شده');
+            }
+            res.render('layouts/payhistory', {
+                title: process.env.SITE_TITLE + ' - سفارشات',
+                name: process.env.SITE_NAME,
+                page: 'payments',
+                orders: orders,
+                userData: req.userData
+            });
+        }
+    });
 });
 
 // ********** Web Application Admin Routes **********
@@ -977,7 +1513,7 @@ app.get('/admin/categories', csrfProtection, adminMiddleware.loginRedirect, (req
 
 app.get('/admin/foods', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
     // Foods and FoodCategories union
-    Food.find({}, (err, foods) => {
+    Food.find({}).populate('category').exec((err, foods) => {
         if (err) {
             res.status(500).json({
                 error: true,
@@ -985,34 +1521,13 @@ app.get('/admin/foods', csrfProtection, adminMiddleware.loginRedirect, (req, res
             });
         }
         else {
-            FoodCategory.find({}, (err, categories) => {
-                if (err) {
-                    res.status(500).json({
-                        error: true,
-                        message: 'خطا در برقراری ارتباط با سرور.'
-                    });
-                }
-                else {
-                    // find reference to food category using category id
-                    for (let i = 0; i < foods.length; i++) {
-                        for (let j = 0; j < categories.length; j++) {
-                            let foodCategoryID = foods[i].category.toString();
-                            let categoryID = categories[j]._id.toString();
-                            if (foodCategoryID == categoryID) {
-                                foods[i].category_name = categories[j].name;
-                            }
-                        }
-                    }
-                    res.render('layouts/admin/foods', {
-                        title: process.env.SITE_TITLE + ' - غذاها',
-                        name: process.env.SITE_NAME,
-                        page: 'admin_foods',
-                        user: req.session.user,
-                        foods: foods,
-                        categories: categories,
-                        csrfToken: req.csrfToken()
-                    });
-                }
+            res.render('layouts/admin/foods', {
+                title: process.env.SITE_TITLE + ' - غذاها',
+                name: process.env.SITE_NAME,
+                page: 'admin_foods',
+                user: req.session.user,
+                foods: foods,
+                csrfToken: req.csrfToken()
             });
         }
     });
@@ -1020,17 +1535,11 @@ app.get('/admin/foods', csrfProtection, adminMiddleware.loginRedirect, (req, res
 
 app.get('/admin/food/:id', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
     let id = req.params.id;
-    Food.findById(id, (err, food) => {
+    Food.findById(id).populate('category').exec((err, food) => {
         if (err) {
             res.status(500).json({
                 error: true,
                 message: 'خطا در برقراری ارتباط با سرور.'
-            });
-        }
-        else if (!food) {
-            res.status(404).json({
-                error: true,
-                message: 'غذای مورد نظر یافت نشد.'
             });
         }
         else {
@@ -1042,27 +1551,19 @@ app.get('/admin/food/:id', csrfProtection, adminMiddleware.loginRedirect, (req, 
                     });
                 }
                 else {
-                    // find reference to food category using category id
-                    for (let j = 0; j < categories.length; j++) {
-                        let foodCategoryID = food.category.toString();
-                        let categoryID = categories[j]._id.toString();
-                        if (foodCategoryID == categoryID) {
-                            food.category_name = categories[j].name;
-                        }
-                    }
                     res.render('layouts/admin/editfood', {
                         title: process.env.SITE_TITLE + ' - ویرایش غذا',
                         name: process.env.SITE_NAME,
                         page: 'admin_editfood',
                         user: req.session.user,
                         food: food,
-                        categories: categories,
-                        csrfToken: req.csrfToken()
+                        csrfToken: req.csrfToken(),
+                        categories: categories
                     });
                 }
             });
         }
-    });
+    })
 });
 
 app.get('/logout', (req, res) => {

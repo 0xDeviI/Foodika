@@ -130,6 +130,112 @@ const userModule = {
                 }
             });
         });
+    },
+    requestAddToCart: (id, quantity, _csrf) => {
+        var token = security.getLocalStorage('token');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/cart',
+                type: 'POST',
+                data: JSON.stringify({
+                    id: id,
+                    quantity: quantity
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestDeleteOrder: (id, _csrf) => {
+        var token = security.getLocalStorage('token');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/cart/' + id,
+                type: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
+    },
+    requestCompleteOrder: (id, method, _csrf) => {
+        var token = security.getLocalStorage('token');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/cart/' + id,
+                type: 'PUT',
+                data: JSON.stringify({
+                    method: method
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                }
+            });
+        });
+    },
+    requestOnlinePaymentToken: (id, _csrf) => {
+        var token = security.getLocalStorage('token');
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/api/v1/user/payment',
+                type: 'POST',
+                data: JSON.stringify({
+                    id: id
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': _csrf,
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (data) {
+                    if (!data.error) {
+                        resolve(data);
+                    }
+                    else {
+                        reject(data.message);
+                    }
+                },
+                error: function (data) {
+                    reject(data.responseJSON.message);
+                }
+            });
+        });
     }
 };
 
@@ -163,6 +269,7 @@ const adminModule = {
         });
     },
     requestAddCategory: (name, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: '/api/v1/admin/category/add',
@@ -172,7 +279,8 @@ const adminModule = {
                 }),
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -189,13 +297,15 @@ const adminModule = {
         });
     },
     requestDeleteCategory: (id, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: `/api/v1/admin/category/${id}`,
                 type: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -212,6 +322,7 @@ const adminModule = {
         });
     },
     requestEditCategory: (id, name, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: `/api/v1/admin/category/${id}`,
@@ -221,7 +332,8 @@ const adminModule = {
                 }),
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -245,6 +357,7 @@ const adminModule = {
         formData.append('image', image.files[0]);
         formData.append('price', price.value);
         formData.append('available', available.checked.toString());
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: '/api/v1/admin/food/add',
@@ -253,7 +366,8 @@ const adminModule = {
                 processData: false,
                 contentType: false,
                 headers: {
-                    'X-CSRF-TOKEN': _csrf
+                    'X-CSRF-TOKEN': _csrf,
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -267,13 +381,15 @@ const adminModule = {
         });
     },
     requestDeleteFood: (id, _csrf) => {
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: `/api/v1/admin/food/${id}`,
                 type: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': _csrf,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -289,7 +405,7 @@ const adminModule = {
             });
         });
     },
-    requestEditFood: (id, name, description, category, image, price, available, _csrf) => {
+    requestEditFood: (id, name, description, category, image, price, available, deletePhoto, _csrf) => {
         var formData = new FormData();
         formData.append('name', name.value);
         formData.append('description', description.value);
@@ -297,6 +413,8 @@ const adminModule = {
         formData.append('image', image.files[0]);
         formData.append('price', price.value);
         formData.append('available', available.checked.toString());
+        formData.append('deletePhoto', deletePhoto.checked.toString());
+        var token = security.getLocalStorage('xtoken');
         return new Promise((resolve, reject) => {
             $.ajax({
                 url: `/api/v1/admin/food/${id}`,
@@ -305,7 +423,8 @@ const adminModule = {
                 processData: false,
                 contentType: false,
                 headers: {
-                    'X-CSRF-TOKEN': _csrf
+                    'X-CSRF-TOKEN': _csrf,
+                    'Authorization': 'Bearer ' + token
                 },
                 success: function (data) {
                     if (!data.error) {
@@ -548,6 +667,7 @@ if (page !== null) {
         var food_image = document.getElementById('food_image');
         var food_price = document.getElementById('food_price');
         var isAvailable = document.getElementById('food_availability');
+        var deletePhoto = document.getElementById('deletePhoto');
         var submit = document.getElementById('submit');
         var _csrf = document.getElementsByName('_csrf')[0].value;
 
@@ -571,7 +691,7 @@ if (page !== null) {
                 notify('خطا', 'شناسه غذا غیرمجاز است.', 2000);
             }
             else {
-                adminModule.requestEditFood(food_id, food_name, food_description, food_category, food_image, food_price, isAvailable, _csrf).then(
+                adminModule.requestEditFood(food_id, food_name, food_description, food_category, food_image, food_price, isAvailable, deletePhoto, _csrf).then(
                     (data) => {
                         notify('موفق', 'غذا ویرایش شد.', 500);
                         setTimeout(() => {
@@ -587,21 +707,21 @@ if (page !== null) {
         });
     }
     else if (page_t === 'food') {
-        var _csrf = document.getElementsByName('_csrf')[0].value;
-
         function addToCart(obj) {
             var id = obj.getAttribute('data-id');
             var available = obj.getAttribute('data-available');
-            if (available !== 'true') {
+            var quantity = document.getElementById('quantity');
+            var _csrf = document.getElementsByName('_csrf')[0].value;
+            if (available.toLowerCase() !== 'true') {
                 notify('خطا', 'این غذا در دسترس نمی باشد.', 2000);
             }
             else {
                 let isLoggedIn = security.getLocalStorage('isLoggedIn');
-                if (isLoggedIn !== 'true') {
+                if (isLoggedIn.toLowerCase() !== 'true') {
                     notify('خطا', 'برای خرید ابتدا وارد شوید.', 2000);
                 }
                 else {
-                    userModule.requestAddToCart(id, _csrf).then(
+                    userModule.requestAddToCart(id, quantity.value, _csrf).then(
                         (data) => {
                             notify('موفق', 'به سبد خرید اضافه شد.', 500);
                             setTimeout(() => {
@@ -612,6 +732,72 @@ if (page !== null) {
                             notify('خطا', message, 2000);
                         }
                     );
+                }
+            }
+        }
+        var addToCardBtn = document.getElementById('addToCard');
+
+        addToCardBtn.addEventListener('click', function (e) {
+            addToCart(addToCardBtn);
+        });
+    }
+    else if (page_t === 'orders') {
+        function deleteOrder(obj) {
+            var confirm = window.confirm('آیا از حذف این سفارش اطمینان دارید؟');
+            if (confirm) {
+                var id = obj.getAttribute('data-id');
+                var _csrf = document.getElementsByName('_csrf')[0].value;
+                userModule.requestDeleteOrder(id, _csrf).then(
+                    (data) => {
+                        notify('موفق', 'سفارش حذف شد.', 500);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    },
+                    (message) => {
+                        notify('خطا', message, 2000);
+                    }
+                );
+            }
+        }
+
+        function completeOrder(obj) {
+            var onlinePay = document.getElementById('onlinePay');
+            var payOnDelivery = document.getElementById('payOnDeliver');
+            var payOnStore = document.getElementById('payOnStore');
+            if (!onlinePay.checked && !payOnDelivery.checked && !payOnStore.checked) {
+                notify('خطا', 'حداقل یکی از گزینه های پرداخت را انتخاب کنید.', 2000);
+            }
+            else {
+                var confirm = window.confirm('آیا از تکمیل این سفارش اطمینان دارید؟');
+                var id = obj.getAttribute('data-id');
+                var method = onlinePay.checked ? 'online' : (payOnDelivery.checked ? 'pay on delivery' : 'pay in store');
+                if (confirm) {
+                    if (method == 'online') { 
+                        var _csrf = document.getElementsByName('_csrf')[0].value;
+                        userModule.requestOnlinePaymentToken(id, _csrf).then(
+                            (data) => {
+                                notify('موفق', 'به صفحه پرداخت بانک منتقل می شوید.', 1500);
+                                setTimeout(() => {
+                                    window.location.href = data.payment;
+                                }, 1500);
+                            },
+                            (message) => {
+                                notify('خطا', message, 2000);
+                            }
+                        );
+                    }
+                    else {
+                        var _csrf = document.getElementsByName('_csrf')[0].value;
+                        userModule.requestCompleteOrder(id, method, _csrf).then(
+                            (data) => {
+                                notify('موفق', 'سفارش تکمیل شد.', 500);
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 500);
+                            }
+                        );
+                    }
                 }
             }
         }

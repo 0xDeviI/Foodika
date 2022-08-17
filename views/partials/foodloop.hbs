@@ -3,7 +3,7 @@
     <img src="/{{image}}" alt="">
     <h3>{{name}} - {{#if isAvailable}} <span class="available">موجود</span> {{else}} <span
             class="unavailable">ناموجود</span> {{/if}}</h3>
-    <p>در دسته <a href="/category/{{category_name}}">{{category_name}}</a></p>
+    <p>در دسته <a href="/category/{{category.name}}">{{category.name}}</a></p>
     <p class="price">{{price}} تومان</p>
     <a href="/food/{{id}}" class="btn">مشاهده</a>
 </div>

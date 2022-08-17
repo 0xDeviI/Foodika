@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> {{title}} </title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="/images/utensils-solid.svg">
+    {{> userrequired}}
+</head>
+
+<body>
+    <div id="page" hidden>{{ page }}</div>
+    {{> header}}
+    <section class="popular" id="popular">
+
+        <h1 class="heading">منوی <span>{{name}}</span></h1>
+
+        <div class="box-container">
+            {{#if (eq orders.length 0)}}
+            <div class="box">
+                <h3>سفارشی برای شما یافت نشد</h3>
+            </div>
+            {{else}}
+            <input type="hidden" name="_csrf" value="{{csrfToken}}">
+            {{#each orders}}
+            {{#each foods}}
+            <div class="box">
+                <img src="/{{food.image}}" alt="">
+                <h3>{{food.name}} - {{#if food.isAvailable}} <span class="available">موجود</span> {{else}} <span
+                        class="unavailable">ناموجود</span> {{/if}}</h3>
+                <p>در دسته <a href="/category/{{food.category.name}}">{{food.category.name}}</a></p>
+                <p>تعداد: {{quantity}}</p>
+                <p class="per-price">مجموع: {{mul quantity food.price}} تومان</p>
+                <p class="price">{{food.price}} تومان</p>
+                <a href="/food/{{food.id}}" class="btn">ویرایش</a>
+                <a href="javascript:void(0);" data-id="{{_id}}" onclick="deleteOrder(this);" class="btn">حذف</a>
+            </div>
+            {{/each}}
+            {{/each}}
+            <div class="box">
+                <h3>مجموع فاکتور</h3>
+                <p class="final-price">{{total}} تومان</p>
+                <div class="payment-options">
+                    <label for="onlinePay">پرداخت آنلاین</label>
+                    <input type="radio" name="pay" id="onlinePay">
+                    <label for="payOnDeliver">پرداخت در محل</label>
+                    <input type="radio" name="pay" id="payOnDeliver">
+                    <label for="payOnStore">پرداخت در رستوران</label>
+                    <input type="radio" name="pay" id="payOnStore">
+                </div>
+                <button data-id="{{orders.0._id}}" onclick="completeOrder(this);" class="btn">تکمیل سفارش</button>
+            </div>
+            {{/if}}
+        </div>
+
+    </section>
+    {{> mainfooter }}
+</body>
+
+</html>

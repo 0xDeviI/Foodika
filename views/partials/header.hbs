@@ -6,14 +6,19 @@
 
     <nav class="navbar">
         <a href="/">خانه</a>
+        {{#if userData.isLoggedIn}}
+        <a href="/dashboard">داشبورد</a>
+        {{/if}}
+        {{#unless userData.isLoggedIn}}
         <a href="/signin">ورود</a>
         <a href="/signup">ثبت نام</a>
+        {{/unless}}
         <a href="/photos">تصاویر تالار</a>
-        {{#if isLoggedIn}}
-            {{#if (gt orders 0)}}
-            <a style="color: blue;" class="fas fa-shopping-cart" href="/dashboard/orders">{{orders}}</a>
+        {{#if userData.isLoggedIn}}
+            {{#if (gt userData.orders.length 0)}}
+            <a style="color: blue;" class="fas fa-shopping-cart" href="/dashboard/orders">{{userData.foods}}</a>
             {{/if}}
-        <a style="color: red;" href="/logout">خروج حساب</a> 
+        <a style="color: red;" href="/logout">خروج حساب</a>
         {{/if}}
     </nav>
 

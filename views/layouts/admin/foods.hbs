@@ -134,7 +134,7 @@
                                                     {{/if}}
                                                 </td>
                                                 <td>{{name}}</td>
-                                                <td>{{category_name}}</td>
+                                                <td>{{category.name}}</td>
                                                 <td>
                                                     <input disabled type="checkbox" {{#if (eq isAvailable true)}} checked {{/if}}>
                                                 </td>
@@ -159,11 +159,7 @@
             <!-- /.content -->
         </div>
         <!-- /.content-wrapper -->
-        <footer class="main-footer">
-            <center>
-                <strong>Copyright &copy; <a href="https://github.com/0xDeviI/">Armin Asefi</a></strong>
-            </center>
-        </footer>
+        {{> admin/footer }}
 
         <!-- /.control-sidebar -->
     </div>
