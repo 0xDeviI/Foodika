@@ -415,8 +415,8 @@ app.post('/api/v1/admin/food/add', globalMiddleware.jwtAuth, upload.single("imag
                         else {
                             // remove image path before /uploads
                             if (image) {
-                                let imageSplit = image.split('\\');
-                                image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
+                                let imageSplit = image.split('/uploads/');
+                                image = `uploads/${imageSplit[1]}`;
                             }
                             else {
                                 image = process.env.FOODS_DEFAULT_IMAGE;
@@ -572,8 +572,8 @@ app.put('/api/v1/admin/food/:id', globalMiddleware.jwtAuth, upload.single('image
                         else {
                             // remove image path before /uploads
                             if (image) {
-                                let imageSplit = image.split('\\');
-                                image = imageSplit[imageSplit.length - 2] + '/' + imageSplit[imageSplit.length - 1];
+                                let imageSplit = image.split('/uploads/');
+                                image = `uploads/${imageSplit[1]}`;
                             }
                             else {
                                 if (deletePhoto === 'true') {
@@ -1801,6 +1801,15 @@ app.get('/dashboard/payments', userMiddleware.userData, userMiddleware.loginRedi
                 userData: req.userData
             });
         }
+    });
+});
+
+app.get('/photos', (req, res) => {
+    res.render('layouts/photos', {
+        title: process.env.SITE_TITLE + ' - تصاوير',
+        name: process.env.SITE_NAME,
+        page: 'photos',
+        userData: req.userData
     });
 });
 
