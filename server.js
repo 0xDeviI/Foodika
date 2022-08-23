@@ -27,7 +27,6 @@ if (env === 'production') {
 const PORT = process.env.PORT || process.env.OTHER_PORT;
 var cookieParser = require('cookie-parser');
 var csrfProtection = csrf({ cookie: true, sessionKey: process.env.CSRF_SESSION_KEY });
-var parseForm = express.urlencoded({ extended: false }); // unused yet
 
 // App config
 hbs.registerPartials(__dirname + '/views/partials');
