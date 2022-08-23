@@ -13,7 +13,7 @@ function userData(req, res, next) {
     // check user orders status
     if (_userData.isLoggedIn) {
         var _userId = req.session.user._id;
-        Order.find({ user: _userId, paymentStatus: 'pending' }, function (err, orders) {
+        Order.find({ user: _userId, paymentStatus: 'pending', paymentMethod: { $ne: 'pay in store' } }, function (err, orders) {
             if (!err) {
                 let foods = 0;
                 for (let i = 0; i < orders.length; i++) {

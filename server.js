@@ -12,8 +12,18 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const multer = require('multer');
 const request = require('request');
-const {getPaymentID} = require('./modules/identifier');
-dotenv.config();
+const { getPaymentID } = require('./modules/identifier');
+var env = process.env.NODE_ENV || 'development';
+if (env === 'development') {
+    dotenv.config({
+        path: '.dev.env'
+    });
+}
+if (env === 'production') {
+    dotenv.config();
+}
+  
+  
 const PORT = process.env.PORT || process.env.OTHER_PORT;
 var cookieParser = require('cookie-parser');
 var csrfProtection = csrf({ cookie: true, sessionKey: process.env.CSRF_SESSION_KEY });
@@ -66,7 +76,7 @@ const storage = multer.diskStorage({
         cb(null, uuid4() + '.' + ext);
     }
 });
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: { fileSize: process.env.MAXIMUM_IMAGE_SIZE },
     fileFilter: (req, file, cb) => {
@@ -87,7 +97,7 @@ const upload = multer({
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function(err) {
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true }, function (err) {
     if (err) {
         throw "Error connecting to MongoDB: " + err;
     }
@@ -1121,7 +1131,7 @@ app.post('/api/v1/user/cart', globalMiddleware.jwtAuth, csrfProtection, (req, re
                         });
                     }
                     else {
-                        Order.findOne({ user: user._id, paymentStatus: 'pending' }, function(err, order) {
+                        Order.findOne({ user: user._id, paymentStatus: 'pending', paymentMethod: { $ne: 'pay in store' } }, function(err, order) {
                             if (err) {
                                 res.status(500).json({
                                     error: true,
@@ -1163,7 +1173,6 @@ app.post('/api/v1/user/cart', globalMiddleware.jwtAuth, csrfProtection, (req, re
                                     }
                                     if (foodExists) {
                                         // update
-                                        console.log(order.foods[i]);
                                         order.foods[i].quantity = quantity;
                                         order.markModified('foods');
                                         order.save( { new: true }, (err, order) => {
@@ -1174,7 +1183,6 @@ app.post('/api/v1/user/cart', globalMiddleware.jwtAuth, csrfProtection, (req, re
                                                 });
                                             }
                                             else {
-                                                console.log(order);
                                                 res.status(200).json({
                                                     error: false,
                                                     message: 'ویرایش سفارش با موفقیت انجام شد.'
@@ -1317,6 +1325,18 @@ app.put('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req,
                 message: 'مقادیر ورودی نامعتبر است.'
             });
         }
+        else if (!validator.isValidAddress(address)) {
+            res.status(400).json({
+                error: true,
+                message: 'آدرس نامعتبر است.'
+            });
+        }
+        else if (!validator.isValidPhone(phone)) {
+            res.status(400).json({
+                error: true,
+                message: 'شماره تلفن نامعتبر است.'
+            });
+        }
         else {
             if (method != 'pay on delivery' && method != 'pay in store' && method != 'online') {
                 res.status(400).json({
@@ -1344,7 +1364,8 @@ app.put('/api/v1/user/cart/:id', globalMiddleware.jwtAuth, csrfProtection, (req,
                             amount += order.foods[i].food.price * order.foods[i].quantity;
                         }
                         order.paymentMethod = method;
-                        order.paymentStatus = 'done';
+                        if (method != 'pay in store')
+                            order.paymentStatus = 'done';
                         order.amount = amount;
                         order.address = address;
                         order.phone = phone;
@@ -1386,6 +1407,18 @@ app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req,
             res.status(400).json({
                 error: true,
                 message: 'شناسه نامعتبر است.'
+            });
+        }
+        else if (!validator.isValidAddress(address)) {
+            res.status(400).json({
+                error: true,
+                message: 'آدرس نامعتبر است.'
+            });
+        }
+        else if (!validator.isValidPhone(phone)) {
+            res.status(400).json({
+                error: true,
+                message: 'شماره تلفن نامعتبر است.'
             });
         }
         else {
@@ -1437,7 +1470,7 @@ app.post('/api/v1/user/payment', globalMiddleware.jwtAuth, csrfProtection, (req,
                                         order_id: order.paymentId,
                                         amount: amount,
                                         currency: 'IRT',
-                                        callback_uri: process.env.DOMAIN + '/payment/callback'
+                                        callback_uri: process.env.DOMAIN + ":" + PORT + '/payment/callback'
                                     },
                                     json: true
                                 };
@@ -1609,7 +1642,7 @@ app.get('/food/:id', userMiddleware.userData, csrfProtection, (req, res) => {
 
 app.get('/dashboard/orders', userMiddleware.userData, userMiddleware.loginRedirect, csrfProtection, (req, res) => {
     var _id = req.session.user._id;
-    Order.find({user: _id, paymentStatus: 'pending'}).populate({
+    Order.find({user: _id, paymentStatus: 'pending', paymentMethod: { $ne: 'pay in store' }}).populate({
         path: 'foods.food',
         populate: {
             path: 'category'
@@ -1772,7 +1805,7 @@ app.get('/payment/callback', userMiddleware.userData, (req, res) => {
 
 app.get('/dashboard/payments', userMiddleware.userData, userMiddleware.loginRedirect,(req, res) => {
     var user = req.session.user;
-    Order.find({ user: user._id, paymentStatus: 'done' }).populate({
+    Order.find({ user: user._id, $or: [{ paymentStatus: 'done' }, { paymentMethod: 'pay in store' }] }).populate({
         path: 'foods.food',
         model: 'Food',
         populate: {
@@ -1804,7 +1837,7 @@ app.get('/dashboard/payments', userMiddleware.userData, userMiddleware.loginRedi
     });
 });
 
-app.get('/photos', (req, res) => {
+app.get('/photos', userMiddleware.userData, (req, res) => {
     res.render('layouts/photos', {
         title: process.env.SITE_TITLE + ' - تصاوير',
         name: process.env.SITE_NAME,
@@ -2009,7 +2042,7 @@ app.get('/admin/user/:id', csrfProtection, adminMiddleware.loginRedirect, (req, 
 });
 
 app.get('/admin/payments', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
-    Order.find({ paymentStatus: 'done' }).populate('user').sort({
+    Order.find({ $or: [{ paymentStatus: 'done' }, { paymentMethod: 'pay in store' }] }).populate('user').sort({
         createdAt: -1
     }).exec((err, orders) => {
         if (err) {
@@ -2032,7 +2065,7 @@ app.get('/admin/payments', csrfProtection, adminMiddleware.loginRedirect, (req, 
 });
 
 app.get('/admin/kitchen', csrfProtection, adminMiddleware.loginRedirect, (req, res) => {
-    Order.find({ paymentStatus: 'done', status: {$ne: 'done'} }).populate('user').populate({
+    Order.find({ $or: [{ paymentStatus: 'done', status: {$ne: 'done'} }, { paymentStatus: {$ne: 'done'}, paymentMethod: 'pay in store', status: {$ne: 'done'} }] }).populate('user').populate({
         path: 'foods.food',
         model: 'Food',
         populate: {

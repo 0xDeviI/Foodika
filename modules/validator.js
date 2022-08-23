@@ -22,6 +22,12 @@ const validator = {
     },
     isValidRole: (role) => {
         return role === 'user' || role === 'admin' || role === 'kitchen' || role === 'reception';
+    },
+    isValidAddress: (address) => {
+        return /^[\u0600-\u06FF\s\d_:]+$/.test(address);
+    },
+    isValidPhone: (phone) => {
+        return !isNaN(phone) && phone.length === 11 || phone.startsWith('0');
     }
 };
 

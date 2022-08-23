@@ -74,6 +74,12 @@ const validator = {
     },
     isValidRole: (role) => {
         return role === 'user' || role === 'admin' || role === 'kitchen' || role === 'reception';
+    },
+    isValidAddress: (address) => {
+        return /^[\u0600-\u06FF\s\d_:]+$/.test(address);
+    },
+    isValidPhone: (phone) => {
+        return !isNaN(phone) && phone.length === 11 || phone.startsWith('0');
     }
 };
 
@@ -913,6 +919,12 @@ if (page !== null) {
             var phone = document.getElementById('phone');
             if (!onlinePay.checked && !payOnDelivery.checked && !payOnStore.checked) {
                 notify('خطا', 'حداقل یکی از گزینه های پرداخت را انتخاب کنید.', 2000);
+            }
+            else if (!validator.isValidAddress(address.value)) {
+                notify('خطا', 'آدرس مجاز نیست.', 2000);
+            }
+            else if (!validator.isValidPhone(phone.value)) {
+                notify('خطا', 'شماره تلفن همراه نادرست است.', 2000);    
             }
             else {
                 var confirm = window.confirm('آیا از تکمیل این سفارش اطمینان دارید؟');

@@ -114,6 +114,7 @@
                                                 <th style="width: 10px">#</th>
                                                 <th>خریدار</th>
                                                 <th>وضعیت</th>
+                                                <th>روش پرداخت</th>
                                                 <th>سفارش</th>
                                                 <th>آدرس</th>
                                                 <th>شماره تلفن</th>
@@ -131,6 +132,17 @@
                                                     <span class="badge badge-warning">در مسیر مشتری</span>
                                                     {{else}}
                                                     <span class="badge badge-success">تحویل شده</span>
+                                                    {{/if}}
+                                                    {{/if}}
+                                                </td>
+                                                <td>
+                                                    {{#if (eq paymentMethod "online")}}
+                                                    پرداخت اینترنتی
+                                                    {{else}}
+                                                    {{#if (eq paymentMethod "pay on delivery")}}
+                                                    پرداخت در محل
+                                                    {{else}}
+                                                    پرداخت در رستوران
                                                     {{/if}}
                                                     {{/if}}
                                                 </td>
